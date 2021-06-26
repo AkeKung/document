@@ -1,0 +1,14 @@
+Flask
+Flask-RESTful
+Flask-JWT-Extended
+mysql-connector-python
+uwsgi
+python-dotenv
+Werkzeug
+easyocr
+pythainlp
+scikit_image
+numpy
+pyrebase
+sib-api-v3-sdk
+pdf2image
