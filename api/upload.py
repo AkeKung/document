@@ -1,3 +1,4 @@
+from flask.helpers import make_response
 from pdf2image import convert_from_path,convert_from_bytes
 from flask import jsonify 
 from flask_restful import Resource, reqparse
@@ -81,4 +82,6 @@ class Upload(Resource):
                 dict_file['pages'].append({j:url})
                 j+=1
 
-        return jsonify(dict_file)
+        return make_response({
+                'status':'success',
+                'data': dict_file},200)

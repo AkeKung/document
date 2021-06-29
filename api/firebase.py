@@ -13,7 +13,16 @@ storage = firebase.storage()
 #storage.child(path_on_cloud).download("test_1.pdf")
 
 #get url
-#auth = firebase.auth()
-#email = "weerachai"
 # url=storage.child(path_on_cloud).get_url(upload['downloadTokens'])
 # print(url)
+
+# db=firebase.database()
+# from firebase_admin import storage as admin_storage,credentials
+# import firebase_admin
+
+# firebase_admin.initialize_app()
+# bucket = admin_storage.bucket()
+# blob = bucket.blob('document/test/delete.jpg')
+# print(blob)
+# blob.delete()
+#print(storage.delete("document/test/delete.jpg"))

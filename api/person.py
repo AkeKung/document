@@ -4,7 +4,7 @@ tname=[]
 with open('name.csv', newline=None,encoding='utf8') as f:
     reader = csv.reader(f)
     for row in reader:
-        tname.append(row[0])
+        tname.append(row[0].strip())
 #custom_tokenizer = Tokenizer(custom_dict=trie,engine='deepcut')
 #print(custom_tokenizer.word_tokenize('นายวีระชัย สาระคุณ'))
 

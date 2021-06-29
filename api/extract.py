@@ -2,21 +2,25 @@
 from document import DocumentModel
 from history import LocModel
 from firebase import storage
-from person import PersonModel 
-import mysql.connector,time,os
+from person import PersonModel,tname
+import mysql.connector,time,os,json
 
-from flask import make_response,request
+from flask import make_response,request,jsonify
 from flask_restful import Resource, reqparse
 from flask_jwt_extended import jwt_required,get_jwt
 import cv2,easyocr
 import numpy as np
-from datetime import datetime
+from datetime import datetime,date
 from pythainlp import spell
 from pythainlp.spell import NorvigSpellChecker
 from itertools import chain
 from collections import Counter
 from skimage import morphology,img_as_float
 reader = easyocr.Reader(['th','en'],recog_network = 'thai_g1')
+
+def default(o):
+    if isinstance(o, (date, datetime)):
+        return o.strftime('%a, %d %b %Y 00:00:00 GMT')
 
 class Extract(Resource):
 
@@ -51,7 +55,7 @@ class Extract(Resource):
         #print('img:',img)
         page=[]
         for i in range(len(img)):
-            temp_img=cv2.imread(f"temp/{img[i]}.png")  
+            temp_img=cv2.imread(f"temp/{img[i]}.png")
             scale_percent = 80 # percent of original size
             width = int(temp_img.shape[1] * scale_percent / 100)
             height = int(temp_img.shape[0] * scale_percent / 100)
@@ -75,7 +79,7 @@ class Extract(Resource):
         for i in imgs:
             gray = cv2.cvtColor(i,cv2.COLOR_BGR2GRAY)
             #ret, bw_img = cv2.threshold(gray,2,255,cv2.THRESH_BINARY)
-            #cv2.imwrite('binary'+str(i)+'.png',bw_img)
+            #cv2.imwrite('binary'+str(i)+'.png',gray)
             kernel = np.ones((3,3), np.uint8)
             img_dilation = cv2.erode(gray,kernel,iterations = 1)
             opt_imgs.append(img_dilation)
@@ -121,21 +125,22 @@ class Extract(Resource):
         return [int(min(y)),int(max(y)),int(min(x)),int(max(x))]
     
     def convert_date(self,date):
-        MONTHS = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม",]
-        thainum=["๐","๑","๒","๓","๔","๕","๖","๗","๘","๙"]
-        mdate=date.replace('เดือน','').replace('ปี','').split()
-        print(mdate)
-        if(mdate[2][0] in thainum):
-            year=int(''.join(map(str, [thainum.index(i) for i in list(mdate[2])]))) -543
-            day=int(thainum.index(mdate[0]))
+        MONTHS = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"]
+        thainum={"๐":'0',"๑":'1',"๒":'2',"๓":'3',"๔":'4',"๕":'5',"๖":'6',"๗":'7',"๘":'8',"๙":'9','o':'0'}
+        d,m,y=date.replace('เดือน','').replace('ปี','').split() 
+        y=y.replace('พ.ศ.','') #.replace('ค.ศ.','') 
+        if y[0] in thainum : 
+            year=int(''.join(map(str, [thainum[i] for i in y]))) -543
+            day=int(''.join([thainum[i] for i in d]))
         else:
-            year=int(mdate[2].replace('พ.ศ.','').replace('ค.ศ.',''))-543 
-            day=int(''.join([thainum.index(i) if i in thainum else i for i in mdate[0]]))
-        m=0
-        for i in range(len(MONTHS)):
-            m+=1 
-            if MONTHS[i] in spell(mdate[1]):break
-        return datetime.strptime(str(year)+' '+str(m)+' '+str(day), '%Y %m %d').date()
+            year=int(y)-543 
+            day=int(d)
+        #print(f'day:{day} month: {m} year:{year}') 
+        ms=0
+        for i in MONTHS:
+            ms+=1 
+            if i in spell(m)[0]:break 
+        return datetime.strptime(str(year)+' '+str(ms)+' '+str(day), '%Y %m %d').date()
     
     @classmethod
     def check_setting(self,input,setting):
@@ -156,12 +161,15 @@ class Extract(Resource):
         setting=self.load_setting()
         for i in range(len(head)): 
             type=self.check_setting(head[i][1],setting) 
-            #y_check=(head[i][0][0][1]+head[i][0][2][1])/2
-            #print(f'type: {type} data: {head[i][1]} pre(h_state): {h_state} title: {title} ' )
+            p=self.summarize([head[i][0]])
+            y_check=(p[0]+p[1])/2
+            x_check=(p[2]+p[3])/2
+            #print(f'type: {type} data: {head[i][1]} pre(h_state): {h_state} title: {title} x: {x_check} y: {y_check}' )
             if type:
-                #print('now:',h_state )
                 setting.pop(type,None)
-                #y=y_check
+                x=x_check
+                y=y_check
+                #print(f'x: {x} y: {y}' )
                 if title:
                     self.keyword[h_state]=title.strip()
                     title=''
@@ -179,15 +187,16 @@ class Extract(Resource):
                     type=False
                 elif len(temp) > 1:
                     title+=head[i][1].replace(type,'').strip()
-                if i ==len(head)-1:
-                    if type and title:
-                        self.keyword[type]=title.strip()
-                    break
                 elif i < len(head)-1:
                     continue
-            if h_state: #and ((y > y_check+10 or y < y_check+10) or (type== 'title' and )):
-                #y=y_check
+            if h_state and ((x_check > x and abs(y-y_check)<10 ) or (x_check < x and abs(y-y_check)<80)):
+                x=x_check
+                y=y_check
                 title+=' '+head[i][1].strip() 
+            if i ==len(head)-1:
+                if title and h_state:
+                    self.keyword[h_state]=title.strip()
+                break
 
         #print(self.keyword)
         sign_sort=self.float_sort(signature)
@@ -201,10 +210,9 @@ class Extract(Resource):
             #print('text:',sign_sort[i][1],'e_state:',e_state)
             if text[-1] ==')' or e_state == 3:
                 if e_state !=0:
-                    #print('text:{} name:{} role:{}'.format(sign_sort[i][1],name,role))
                     #print('collect sign:{}'.format(sign))
                     if name and role:
-                        sign.insert(0,[("".join(role)),(" ".join(name).strip())[1:-1]])
+                        sign.insert(0,[("".join(role)),(" ".join(name).strip())])
                         p.insert(0,[self.summarize(p_role),self.summarize(p_name)])
                         p_signature.insert(0,[self.summarize(p_role),self.summarize(p_name)])
                 e_state=1
@@ -221,8 +229,9 @@ class Extract(Resource):
                     e_state =2
                     continue
                 else:
-                    name.insert(0,spell(text)[0])
+                    name.insert(0,spell(text.replace('(','').replace(')',''))[0])
             elif  e_state==2:
+                #print('text:{} name:{} role:{}'.format(text,name,role))
                 #print('e_state: ',e_state,'text:',text,' next: ',sign_sort[i-1][1] ,' check: ',self.check_setting(sign_sort[i-1][1],setting))
                 if type=='endpoint':
                     if (self.check_setting(sign_sort[i-1][1],setting)=='signature'):
@@ -231,42 +240,56 @@ class Extract(Resource):
                     role.insert(0,text)
                     p.insert(0,[self.summarize(p_role),self.summarize(p_name)])
                     p_signature.insert(0,[self.summarize(p_role),self.summarize(p_name)])
-                    sign.insert(0,[("".join(role)),(" ".join(name).strip())[1:-1]])
-                    if (self.summarize(p_role))[0] - self.summarize([sign_sort[i-1][0]])[1] > 50:p.insert(0,[self.summarize([sign_sort[i-1][0]])[1]])
-                    elif (self.summarize(p_role))[0] - self.summarize([sign_sort[i-2][0]])[1] > 50:p.insert(0,[self.summarize([sign_sort[i-2][0]])[1]])                                    
+                    j=0
+                    while self.summarize(p_role)[0] - self.summarize([sign_sort[i-j][0]])[1] < 50:
+                        j+=1
+                        if sign_sort[i-j][1].strip() in tname:
+                            name.insert(0,sign_sort[i-j][1].strip())
+                    p.insert(0,[self.summarize([sign_sort[i-j][0]])[1]])
+                    sign.insert(0,[("".join(role)),(" ".join(name).strip())])
+                    # if (self.summarize(p_role))[0] - self.summarize([sign_sort[i-1][0]])[1] > 50:
+                    #     print('pre1')
+                    #     p.insert(0,[self.summarize([sign_sort[i-1][0]])[1]])
+                    # elif (self.summarize(p_role))[0] - self.summarize([sign_sort[i-2][0]])[1] > 50:
+                    #     print('pre2')
+                    #     p.insert(0,[self.summarize([sign_sort[i-2][0]])[1]])                                    
+                    # 
                     break
-                if type =='signature':
+                if type =='signature' or text in tname:
                     p_signature.append([self.summarize([sign_sort[i][0]])])
-                    e_state==3
+                    e_state=3
+                    if text in tname:
+                        name.insert(0,text)
                     continue
                 if type=='personRole':
                     p_role.insert(0,sign_sort[i][0]) 
                     role.insert(0,spell(text)[0])
-        # print('result signature:',sign)
+        print('result signature:',sign)
         key_signature=[]
 
         eximg_sign=self.extract_sign(self.delect_text(img_sign,p_signature),p)
         for i in range(len(eximg_sign)):
             person=PersonModel.tokenization_name(sign[i][1])
-            # print('person: ',sign[i][1],' after token: ',person)
+            print('person: ',sign[i][1],' after token: ',person)
             if len(person) == 3:
                 id=PersonModel.check_person(person[0],person[1],person[2])
                 if not id:
-                    # print('not have')
-                    id =PersonModel.current_person()+i
+                    print('not have')
+                    id =PersonModel.current_person()+i+1
             else:
-                id=PersonModel.current_person()+i
+                id=PersonModel.current_person()+i+1
             key_signature.append({
                     "personId":id,
                     "personName":sign[i][1],
                     "personRole":sign[i][0],
                     "signatureImg":self.save_signature(self.keyword['documentId'],i,eximg_sign[i])
-                    }) 
+                    })
         self.keyword['signature']=key_signature
+        print(key_signature)
         return self.keyword
 
     def save_signature(self,documentId,i,img_sign):
-        cv2.imwrite('temp/sign_'+str(i)+'.png',img_sign)
+        #cv2.imwrite('temp/sign_'+str(i)+'.png',img_sign)
         path_on_cloud = "document/{}/{}".format(documentId,'sign_'+str(i)+'.png')
         upload=storage.child(path_on_cloud).put('temp/sign_'+str(i)+'.png')
         url=storage.child(path_on_cloud).get_url(upload['downloadTokens'])
@@ -285,13 +308,15 @@ class Extract(Resource):
 
     def extract_sign(self,img_sign,add_sign):
         s=[]
+        print(add_sign)
         for i in range(len(add_sign)-1): 
             if(isinstance(add_sign[i][0],int)):
                 #sign=img_sign[add_sign[i][0][1]:add_sign[i+1][2][0],add_sign[i+1][0][3]:add_sign[i+1][1][2]].copy()
                 sign=img_sign[add_sign[i][0]:add_sign[i+1][1][0],add_sign[i+1][1][2]:add_sign[i+1][1][3]].copy()
             else:
                 #sign=img_sign[add_sign[i][2][1]:add_sign[i+1][2][0],add_sign[i+1][0][3]:add_sign[i+1][1][2]].copy()
-                sign=img_sign[add_sign[i][0][1]:add_sign[i+1][1][0],add_sign[i+1][1][2]:add_sign[i+1][1][3]].copy()
+                sign=img_sign[add_sign[i][1][1]:add_sign[i+1][1][0],add_sign[i+1][1][2]:add_sign[i+1][1][3]].copy()
+            cv2.imwrite(f's{i}.png',sign)
             gray = cv2.cvtColor(sign,cv2.COLOR_BGR2GRAY)
             image = img_as_float(gray)
             image_binary = image < 0.5
@@ -320,7 +345,7 @@ class Extract(Resource):
             #print('start',len(sign))
             e=[]
             l=[]
-            #print('line: ',lines,' type:',type(lines))
+            print('line: ',lines,' type:',type(lines))
             if isinstance(lines,np.ndarray):
                 for line in lines:
                     row=[]
@@ -343,7 +368,10 @@ class Extract(Resource):
                     kernel = np.ones((3,3), np.uint8)
                     img_dilation = cv2.dilate(gray, kernel, iterations=1) 
                     img_erosion = cv2.erode(img_dilation, kernel, iterations=1)
-                s.append(img_erosion)
+                    s.append(img_erosion)
+            else:
+                s.append(sign)
+            #print(s)
         return s
 
     @jwt_required()
@@ -369,7 +397,6 @@ class Extract(Resource):
             for j,k in i.items():
                 orderPage.append(int(j))
                 DocumentModel.save_page(Data['documentId'],int(j),k)
-        self.keyword['pageSequence']=orderPage
         self.keyword['documentId']=Data['documentId']
         start_time = time.time()
         head,signature,img_head,img_sign=self.read_data(orderPage)
@@ -383,18 +410,21 @@ class Extract(Resource):
         start_time=time.time()
         result=self.classify_keyword(head,signature,img_sign)
         print ("classify_keyword time --- %s seconds ---" % (time.time() - start_time))
-        self.save_pre_to_db() 
+        with open('temp/temp.json','w',encoding = 'utf-8') as r: 
+            json.dump(result,r,sort_keys=True,default=default,ensure_ascii=False)
         return make_response({
             'message': 'success',
-            'data': self.keyword
+            'data': result
         },200)
-    
+
     def save_pre_to_db(self):
+        mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
         mycursor = mydb.cursor()
-        sql = 'insert into document (documentId,p_title,p_sendAddress,p_receiver,pageSequence) value (%s,%s,%s,%s,%s)'
-        val=(self.keyword['documentId'],self.keyword['title'],self.keyword['sendAddress'],self.keyword['receiver'],str(self.keyword['pageSequence']))
+        sql = 'insert into document (documentId,p_title,p_sendAddress,p_receiver) value (%s,%s,%s,%s)'
+        val=(self.keyword['documentId'],self.keyword['title'],self.keyword['sendAddress'],self.keyword['receiver'])
         mycursor.execute(sql,val)
         mydb.commit()
+        mydb.close()
         # for i in self.keyword['signature']:
         #     self.save_to_signature(i)
 
@@ -446,25 +476,24 @@ class Extract(Resource):
                             location='json',
                             help="This field cannot be blank."
                             )
-        saveparser.add_argument('pageSequence',
-                            type=list,
-                            required=True,
-                            location='json',
-                            help="This field cannot be blank."
-                            )
         saveparser.add_argument('dateWrite',
                             type= str,
                             required=True,
                             location='json',
                             help="This field cannot be blank."
                             )
+        with open('temp/temp.json', 'r') as openfile:
+            json_object = json.load(openfile)
+        if not DocumentModel.find_doc_by_id(json_object['documentId']):
+            for k in self.keyword:
+                self.keyword[k]=json_object[k]
+            self.save_pre_to_db()
         Data = saveparser.parse_args()
         doc=DocumentModel()
         for i in Data:
             value=Data[i]
             if i =='dateWrite':
                 value=datetime.strptime(Data[i],"%a, %d %b %Y %H:%M:%S %Z").date()
-            #if i =='pageSequence':page
             setattr(doc,i,value)
         doc.save_to_db()
         loc=LocModel()
@@ -480,4 +509,5 @@ class Extract(Resource):
             'status':'success',
             'data': doc.json(DocumentModel.find_signature_in_doc(doc.documentId)) 
         },200)
+
 

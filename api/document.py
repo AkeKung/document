@@ -9,14 +9,13 @@ from history import LocModel
 from datetime import datetime
 
 class DocumentModel:
-    def __init__(self,documentId=None,title=None,sendAddress=None,receiver=None,dateWrite=None,signature=None,pageSequence=None,dateUpdate=None):
+    def __init__(self,documentId=None,title=None,sendAddress=None,receiver=None,dateWrite=None,signature=None,dateUpdate=None):
         self.documentId     = documentId,
         self.title          = title,
         self.sendAddress    = sendAddress,
         self.receiver       = receiver,
         self.dateWrite      = dateWrite,
         self.signature       = signature,
-        self.pageSequence   = pageSequence
         self.dateUpdate     = dateUpdate
 
     def json(self,detail=None):
@@ -26,7 +25,6 @@ class DocumentModel:
             "sendAddress"   : self.sendAddress ,
             "receiver"      : self.receiver,
             "dateWrite"     : self.dateWrite,
-            "pageSequence"  : self.pageSequence, 
             "dateUpdate"    : self.dateUpdate
         }
         if detail:
@@ -50,12 +48,25 @@ class DocumentModel:
     def save_to_db(self):
         mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
         mycursor = mydb.cursor()
-        query = "Update document set title = %s, sendAddress = %s, receiver =%s,dateWrite = %s,pageSequence= %s where documentId = %s"
-        mycursor.execute(query,(self.title, self.sendAddress,self.receiver,self.dateWrite,str(self.pageSequence),self.documentId))
+        query = "Update document set title = %s, sendAddress = %s, receiver =%s,dateWrite = %s where documentId = %s"
+        mycursor.execute(query,(self.title, self.sendAddress,self.receiver,self.dateWrite,self.documentId))
         mydb.commit()
         mydb.close()
         for i in self.signature:
             self.save_signature(i)
+
+    @classmethod
+    def current_signature(cls):
+        mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
+        mycursor = mydb.cursor()
+        mycursor.execute("SELECT Max(id_signature) FROM signature")
+        result = mycursor.fetchone()
+        mydb.close()
+        #print("result: ",result)
+        if None not in result: 
+            return result[0]
+        else: 
+            return 0
 
     def save_signature(self,signature):
         person=PersonModel()
@@ -63,17 +74,17 @@ class DocumentModel:
         mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
         mycursor = mydb.cursor()
         sql = "INSERT INTO signature (id_signature,doc_id,person_id,signature_role,signature_img) VALUES (%s,%s,%s,%s,%s)"
-        val = (DocumentModel.current_doc()+1,self.documentId,id_person,signature['personRole'],signature['signatureImg'])
+        val = (self.current_signature()+1,self.documentId,id_person,signature['personRole'],signature['signatureImg'])
         mycursor.execute(sql, val)
         mydb.commit()
         mydb.close()
     
     def update_db(self):
-        print(self.title,self.sendAddress,self.receiver,self.dateWrite,str(self.pageSequence),self.documentId) 
+        print(self.title,self.sendAddress,self.receiver,self.dateWrite,self.documentId) 
         mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
         mycursor = mydb.cursor(buffered=True)
-        query = "UPDATE document SET title = %s, sendAddress = %s, receiver = %s, dateWrite = %s, pageSequence = %s where documentId = %s"
-        mycursor.execute(query,(self.title,self.sendAddress,self.receiver,self.dateWrite,str(self.pageSequence),self.documentId))
+        query = "UPDATE document SET title = %s, sendAddress = %s, receiver = %s, dateWrite = %s where documentId = %s"
+        mycursor.execute(query,(self.title,self.sendAddress,self.receiver,self.dateWrite,self.documentId))
         mydb.commit()
         for i in self.signature:
             self.update_signature(i)
@@ -94,18 +105,16 @@ class DocumentModel:
     def find_doc_by_id(cls,documentId):
         mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
         mycursor = mydb.cursor()
-        query = f"SELECT documentId,title,sendAddress,receiver,dateWrite,pageSequence,Max(date_update) FROM document join history on history.doc_id = document.documentId WHERE documentId= {documentId}"
-        print('query: ',query)
+        query = f"SELECT documentId,title,sendAddress,receiver,dateWrite,Max(date_update) FROM document join history on history.doc_id = document.documentId WHERE documentId= {documentId} "
+        #print('query: ',query)
         mycursor.execute(query)
         result = mycursor.fetchone()
         mydb.close()
         if None != result[0]:
             doc=DocumentModel()
-            dict_doc=['documentId','title','sendAddress','receiver','dateWrite','pageSequence','dateUpdate']
+            dict_doc=['documentId','title','sendAddress','receiver','dateWrite','dateUpdate']
             for j in range(len(dict_doc)):
                 value=result[j]
-                if dict_doc[j] == 'pageSequence':
-                    value=[int(i) for i in result[j][1:-1].split(',')]
                 if value:
                     setattr(doc,dict_doc[j],value)
                 else :setattr(doc,dict_doc[j],'')
@@ -137,18 +146,15 @@ class DocumentModel:
                 text+=f'where dateWrite {cond[0]} and dateWrite {cond[1]}'
         mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
         mycursor = mydb.cursor()
-        query="SELECT documentId,title,sendAddress,receiver,dateWrite,pageSequence,Max(date_update) FROM document join history on document.documentId = history.doc_id {2} group by documentId limit {0} offset {1}".format(limit,offset,text)
+        query="SELECT documentId,title,sendAddress,receiver,dateWrite,Max(date_update) FROM document join history on document.documentId = history.doc_id {2} group by documentId ORDER BY documentId DESC limit {0} offset {1}".format(limit,offset,text)
         mycursor.execute(query)
         result = mycursor.fetchall()
         mydb.close()
         list=[]
-        dict_doc=['documentId','title','sendAddress','receiver','dateWrite','pageSequence','dateUpdate']
+        dict_doc=['documentId','title','sendAddress','receiver','dateWrite','dateUpdate']
         for i in result:
             for j in range(len(i)):
-                value = i[j]
-                if dict_doc[j] == 'pageSequence':
-                    value=[int(i) for i in i[j][1:-1].split(',')]
-                setattr (cls,dict_doc[j],value)
+                setattr (cls,dict_doc[j],i[j])
             list.append(cls.json(cls))
         return list
 
@@ -172,7 +178,7 @@ class DocumentModel:
         mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
         mycursor=mydb.cursor()
         query="""
-            SELECT documentId,title,sendAddress,receiver,dateWrite,pageSequence,date_update From document join history on  documentId = doc_id
+            SELECT documentId,title,sendAddress,receiver,dateWrite,date_update From document join history on  documentId = doc_id
             where EXISTS ( 
             SELECT DISTINCT documentId 
             from document join signature on document.documentId = signature.doc_id 
@@ -180,19 +186,16 @@ class DocumentModel:
             where documentId like '%{0}%' or title like '%{0}%' or sendAddress like '%{0}%'
                   or receiver like '%{0}%' or DATE_FORMAT(dateWrite,'%Y-%m-%d') like '%{0}%'
                   or signature_role like '%{0}%' or person_tname like '%{0}%' or person_fname like '%{0}%' or person_lname like '%{0}%')
-            group by documentId {3} limit {1} offset {2};
+            group by documentId {3} ORDER BY documentId DESC limit {1} offset {2};
         """.format(keyword,limit,offset,text)
         mycursor.execute(query)
         result = mycursor.fetchall()
         mydb.close()
         list=[]
-        dict_doc=['documentId','title','sendAddress','receiver','dateWrite','pageSequence','dateUpdate']
+        dict_doc=['documentId','title','sendAddress','receiver','dateWrite','dateUpdate']
         for i in result:
             for j in range(len(dict_doc)):
-                value=i[j]
-                if dict_doc[j] == 'pageSequence':
-                    value=[int(i) for i in i[j][1:-1].split(',')]
-                setattr(cls,dict_doc[j],value)
+                setattr(cls,dict_doc[j],i[j])
             list.append(cls.json(cls))
         return list
 
@@ -391,12 +394,6 @@ class ViewDocumentDetail(Resource):
                             help="This field cannot be blank."
                             )
         saveparser.add_argument('signature',
-                            type=list,
-                            required=True,
-                            location='json',
-                            help="This field cannot be blank."
-                            )
-        saveparser.add_argument('pageSequence',
                             type=list,
                             required=True,
                             location='json',

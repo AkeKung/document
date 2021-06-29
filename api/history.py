@@ -47,7 +47,7 @@ class LocModel:
     def list_loc(cls,limit,offset):
         mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
         mycursor=mydb.cursor()
-        sql="SELECT * FROM history limit %s offset %s"
+        sql="SELECT * FROM history order by id_history DESC limit %s offset %s"
         mycursor.execute(sql, (limit,offset))
         result = mycursor.fetchall()
         mydb.close()
@@ -89,5 +89,5 @@ class ViewLoc(Resource):
             },400 
         return make_response({
             'status':'success',
-            'data':LocModel.list_loc(params['limit'],params['offset'])
+            'data':LocModel.list_loc(params['limit'],params['offset']) 
         },200)

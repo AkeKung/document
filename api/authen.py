@@ -91,7 +91,7 @@ class UserLogin(Resource):
         user = UserModel.find_by_user(data['username/email'],type)
         if user: 
             if check_password_hash(user.password,data['password']):
-                access_token = create_access_token(identity=user.userId, fresh=True)
+                access_token = create_access_token(identity=user.userId, fresh=True,expires_delta=timedelta(hours=1))
                 refresh_token = create_refresh_token(user.userId)
                 user.status ="on"
                 user.lastConnect= datetime.now().strftime('%Y-%m-%d %H:%M:%S')
