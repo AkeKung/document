@@ -158,7 +158,8 @@ class UserProfile(Resource):
                         "lname":user.lname,
                         "email":user.email,
                         "permiss":user.permiss,
-                        "picture":user.picture
+                        "picture":user.picture,
+                        "status":user.status
                     }},200)
         #print(user.json())
         return {'status':'failed',

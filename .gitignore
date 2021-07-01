@@ -1,7 +1,5 @@
 database/
 dataset/
-temp/
-profile/
 document_api/
 document_project/
 db.sqlite3

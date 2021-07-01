@@ -67,7 +67,7 @@ class Upload(Resource):
             filename = data.filename
             filetype= data.mimetype.split("/")[-1].lower()
             #print("filetype: ",filetype)
-
+            
             #convert pdf to image
             if "pdf" in filetype:
                 pages = convert_from_bytes(data.stream.read(), 300)
