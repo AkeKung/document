@@ -179,7 +179,7 @@ class DocumentModel:
         mycursor=mydb.cursor()
         query="""
             SELECT documentId,title,sendAddress,receiver,dateWrite,date_update From document join history on  documentId = doc_id
-            where EXISTS ( 
+            where documentId in ( 
             SELECT DISTINCT documentId 
             from document join signature on document.documentId = signature.doc_id 
                           join persons on persons.id_person = signature.person_id 
@@ -188,6 +188,7 @@ class DocumentModel:
                   or signature_role like '%{0}%' or person_tname like '%{0}%' or person_fname like '%{0}%' or person_lname like '%{0}%')
             group by documentId {3} ORDER BY documentId DESC limit {1} offset {2};
         """.format(keyword,limit,offset,text)
+        print(query)
         mycursor.execute(query)
         result = mycursor.fetchall()
         mydb.close()
