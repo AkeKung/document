@@ -51,8 +51,8 @@ class UserModel:
     def save_to_db(self):
         mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
         mycursor = mydb.cursor()
-        query = "INSERT INTO user (username, email, password, permiss ,status) VALUES (%s ,%s,%s,%s,%s)"
-        mycursor.execute(query,(self.username, self.email, self.password,self.permiss,self.status))
+        query = "INSERT INTO user (u_id, username, email, password, permiss ,status,picture) VALUES (%s,%s,%s,%s,%s,%s,%s)"
+        mycursor.execute(query,(self.userId,self.username, self.email, self.password,self.permiss,self.status,self.picture))
         mydb.commit()
         mydb.close()
 
@@ -96,6 +96,19 @@ class UserModel:
             user=None
         #mydb.close()
         return user
+    
+    @classmethod
+    def current_user(cls):
+        mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
+        mycursor = mydb.cursor()
+        query = "SELECT Max(u_id) FROM user"
+        mycursor.execute(query)
+        result = mycursor.fetchone()
+        mydb.close()
+        if None not in result: 
+            return result[0]
+        else: 
+            return 0
 
     @classmethod
     def get_user(cls,limit,offset,cond):

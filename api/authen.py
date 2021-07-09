@@ -60,7 +60,7 @@ class UserRegister(Resource):
 
                 
         hashed = generate_password_hash(data['password'],method='sha256')
-        user = UserModel(data['username'],data['email'],hashed,picture="https://firebasestorage.googleapis.com/v0/b/projectdoc-5af7b.appspot.com/o/template%2FArtboard%201.png?alt=media&token=b74d1752-21ae-4255-8d37-1440d1c967d5")
+        user = UserModel(data['username'],data['email'],hashed,_id = UserModel.current_user()+1,picture="https://firebasestorage.googleapis.com/v0/b/projectdoc-5af7b.appspot.com/o/template%2FArtboard%201.png?alt=media&token=b74d1752-21ae-4255-8d37-1440d1c967d5")
             
         print(user.json())
         user.save_to_db()
