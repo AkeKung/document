@@ -68,7 +68,7 @@ class Extract(Resource):
             if i ==0:
                 page.insert(0,rtemp_img[0:int(height/3), 0:width])
             else:
-                page.append(rtemp_img[int(height/3):height,0:width])
+                page.append(rtemp_img[0:height,0:width])
         return page
 
     def read_data(self,orderPage):
@@ -127,7 +127,7 @@ class Extract(Resource):
     def convert_date(self,date):
         MONTHS = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"]
         thainum={"๐":'0',"๑":'1',"๒":'2',"๓":'3',"๔":'4',"๕":'5',"๖":'6',"๗":'7',"๘":'8',"๙":'9','o':'0'}
-        d,m,y=date.replace('เดือน','').replace('ปี','').split() 
+        d,m,y=date.split() 
         y=y.replace('พ.ศ.','') #.replace('ค.ศ.','') 
         if y[0] in thainum : 
             year=int(''.join(map(str, [thainum[i] for i in y]))) -543
@@ -176,10 +176,13 @@ class Extract(Resource):
                 h_state=type
                 temp=head[i][1].split()
                 if type== 'dateWrite':
+                    temp=head[i][1].replace('เดือน','').replace('ปี','').strip().split()
                     if len(temp) > 1:
                         day=[]
                         for j in temp[1:]:
                             day.append(j)
+                        if len(day) < 3:
+                            day.append(head[i+1][1]) 
                         self.keyword[type]=self.convert_date(' '.join(day))
                     else:
                         self.keyword[type]=self.convert_date(head[i+1][1]+' '+head[i+2][1])
@@ -194,11 +197,11 @@ class Extract(Resource):
                 y=y_check
                 title+=' '+head[i][1].strip() 
             if i ==len(head)-1:
-                if title and h_state:
+                if title and h_state and self.keyword[h_state]==None:
                     self.keyword[h_state]=title.strip()
                 break
 
-        #print(self.keyword)
+        print(self.keyword)
         sign_sort=self.float_sort(signature)
         e_state=0
         sign=[]
@@ -401,12 +404,12 @@ class Extract(Resource):
         start_time = time.time()
         head,signature,img_head,img_sign=self.read_data(orderPage)
         print ("extract time --- %s seconds ---" % (time.time() - start_time))
-        # print('head: ')
-        # for i in head:
-        #     print (i)
-        # print('signature:')
-        # for i in signature:
-        #     print(i)
+        print('head: ')
+        for i in head:
+            print (i)
+        print('signature:')
+        for i in signature:
+            print(i)
         start_time=time.time()
         result=self.classify_keyword(head,signature,img_sign)
         print ("classify_keyword time --- %s seconds ---" % (time.time() - start_time))
