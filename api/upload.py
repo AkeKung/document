@@ -10,13 +10,16 @@ from document import DocumentModel
 class Upload(Resource):
 
     parser = reqparse.RequestParser()
-    parser.add_argument('file',
+    for i in range(1,11):
+        required=False
+        if i==1:required=True
+        parser.add_argument(f'file{i}',
                         type=werkzeug.datastructures.FileStorage,
                         location='files',
-                        required=True,
-                        action='append',
+                        required=required,
+                        #action='append',
                         )
-
+                        
     def save_to_firebase(self,file,documentId,filename):
         path_local='temp/'+filename
         file.save(path_local)
@@ -27,7 +30,7 @@ class Upload(Resource):
 
     def validation_upload(self,data):
         all_type={'image/png','application/pdf','image/jpeg'}
-        type={i.mimetype for i in data['file']}
+        type={i.mimetype for i in data}
         if '' in type:
             return {
                 'status':'failed',
@@ -51,8 +54,9 @@ class Upload(Resource):
             return {
                 'status':'failed',
                 'message': 'Admin privilege required'},403
-        Data = Upload.parser.parse_args()
-        #print("Data: ",Data)
+        Datas = Upload.parser.parse_args() 
+        Data = [Datas[i] for i in Datas if Datas[i]!=None]
+        print("Data: ",Data)
         
         if self.validation_upload(Data) :
             return self.validation_upload(Data) 
@@ -63,7 +67,7 @@ class Upload(Resource):
                     "pages":[]
             }
         j=0
-        for i,data in enumerate( Data['file']):
+        for data in Data:
             filename = data.filename
             filetype= data.mimetype.split("/")[-1].lower()
             #print("filetype: ",filetype)
