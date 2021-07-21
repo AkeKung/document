@@ -83,6 +83,14 @@ class UserLogin(Resource):
                         )
     def post(self):
         data = UserLogin.parser.parse_args()
+        if not data['username/email'] :
+            return {
+                'status':'failed',
+                "message": "Please Enter username/email"}, 400  
+        elif not data['password'] :
+            return {
+                'status':'failed',
+                "message": "Please Enter password"}, 400  
         regex = '^(\w|\.|\_|\-)+[@](\w|\_|\-|\.)+[.]\w{2,3}$'
         if re.search(regex,data['username/email']):
             type='email'
