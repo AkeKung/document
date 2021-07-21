@@ -140,7 +140,8 @@ class ForgetPassword(Resource):
     parser.add_argument('email',
                         type=str,
                         required=True,
-                        help="This field cannot be blank."
+                        help="This field cannot be blank.",
+                        location='args'
                         )
     def post(self):
         data=ForgetPassword.parser.parse_args()
