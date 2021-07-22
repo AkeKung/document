@@ -127,6 +127,7 @@ class Extract(Resource):
     def convert_date(self,date):
         MONTHS = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"]
         thainum={"๐":'0',"๑":'1',"๒":'2',"๓":'3',"๔":'4',"๕":'5',"๖":'6',"๗":'7',"๘":'8',"๙":'9','o':'0'}
+        
         d,m,y=date.split() 
         y=y.replace('พ.ศ.','') #.replace('ค.ศ.','') 
         if y[0] in thainum : 
@@ -292,7 +293,7 @@ class Extract(Resource):
         return self.keyword
 
     def save_signature(self,documentId,i,img_sign):
-        #cv2.imwrite('temp/sign_'+str(i)+'.png',img_sign)
+        cv2.imwrite('temp/sign_'+str(i)+'.png',img_sign)
         path_on_cloud = "document/{}/{}".format(documentId,'sign_'+str(i)+'.png')
         upload=storage.child(path_on_cloud).put('temp/sign_'+str(i)+'.png')
         url=storage.child(path_on_cloud).get_url(upload['downloadTokens'])
