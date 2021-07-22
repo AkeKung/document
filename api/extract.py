@@ -185,7 +185,7 @@ class Extract(Resource):
                             day.append(head[i+1][1]) 
                         self.keyword[type]=self.convert_date(' '.join(day))
                     else:
-                        self.keyword[type]=self.convert_date(head[i+1][1]+' '+head[i+2][1])
+                        self.keyword[type]=self.convert_date((head[i+1][1]+' '+head[i+2][1]).replace('เดือน','').replace('ปี','').strip())
                         h_state=''
                     type=False
                 elif len(temp) > 1:
