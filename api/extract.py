@@ -25,7 +25,6 @@ def default(o):
 class Extract(Resource):
 
     def __init__ (self):
-        
         self.keyword ={
             "documentId": None,
             "title": None,
@@ -127,14 +126,15 @@ class Extract(Resource):
     def convert_date(self,date):
         MONTHS = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"]
         thainum={"๐":'0',"๑":'1',"๒":'2',"๓":'3',"๔":'4',"๕":'5',"๖":'6',"๗":'7',"๘":'8',"๙":'9','o':'0'}
-        
-        d,m,y=date.split() 
-        y=y.replace('พ.ศ.','') #.replace('ค.ศ.','') 
+        chance = 543
+        if 'ค.ศ.' in date:
+            chance = 0
+        d,m,y=date.replace('เดือน','').replace('ปี','').replace('พ.ศ.','').replace('ค.ศ.','').split() 
         if y[0] in thainum : 
-            year=int(''.join(map(str, [thainum[i] for i in y]))) -543
+            year=int(''.join(map(str, [thainum[i] for i in y]))) -chance
             day=int(''.join([thainum[i] for i in d]))
         else:
-            year=int(y)-543 
+            year=int(y)-chance 
             day=int(d)
         #print(f'day:{day} month: {m} year:{year}') 
         ms=0
@@ -144,15 +144,15 @@ class Extract(Resource):
         return datetime.strptime(str(year)+' '+str(ms)+' '+str(day), '%Y %m %d').date()
     
     @classmethod
-    def check_setting(self,input,setting):
+    def check_setting(cls,input,setting):
         for i,j in setting.items():
             for key in j:
                 if len(key) > len(input):
                     continue
                 if key in input:
                     if input.strip().index(key)==0:
-                        return i
-        return False
+                        return i,input.replace(key,"").strip()
+        return False,""
 
     def classify_keyword(self,head,signature,img_sign):
         h_state=''
@@ -161,7 +161,7 @@ class Extract(Resource):
         x=0
         setting=self.load_setting()
         for i in range(len(head)): 
-            type=self.check_setting(head[i][1],setting) 
+            type,pre_temp=self.check_setting(head[i][1],setting)
             p=self.summarize([head[i][0]])
             y_check=(p[0]+p[1])/2
             x_check=(p[2]+p[3])/2
@@ -171,27 +171,27 @@ class Extract(Resource):
                 x=x_check
                 y=y_check
                 #print(f'x: {x} y: {y}' )
-                if title:
-                    self.keyword[h_state]=title.strip()
+                if title and type != h_state:
+                    if h_state == "dateWrite":
+                        self.keyword[h_state]=self.convert_date(title.strip())
+                    else: self.keyword[h_state]=title.strip()
                     title=''
                 h_state=type
-                temp=head[i][1].split()
-                if type== 'dateWrite':
-                    temp=head[i][1].replace('เดือน','').replace('ปี','').strip().split()
-                    if len(temp) > 1:
-                        day=[]
-                        for j in temp[1:]:
-                            day.append(j)
-                        if len(day) < 3:
-                            day.append(head[i+1][1]) 
-                        self.keyword[type]=self.convert_date(' '.join(day))
-                    else:
-                        self.keyword[type]=self.convert_date((head[i+1][1]+' '+head[i+2][1]).replace('เดือน','').replace('ปี','').strip())
-                        h_state=''
-                    type=False
-                elif len(temp) > 1:
-                    title+=head[i][1].replace(type,'').strip()
-                elif i < len(head)-1:
+                #temp=pre_temp.split()#head[i][1].split()
+                # if type == 'dateWrite':
+                #     if len(temp) > 1:
+                #         day=[]
+                #         for j in temp[1:]:
+                #             day.append(j)
+                #         if len(day) < 3:
+                #             day.append(head[i+1][1]) 
+                #         self.keyword[type]=self.convert_date(' '.join(day))
+                #     else:
+                #         self.keyword[type]=self.convert_date((head[i+1][1]+' '+head[i+2][1]).replace('เดือน','').replace('ปี','').strip())
+                #         h_state=''
+                #     type=False
+                title+=pre_temp
+                if i < len(head)-1:
                     continue
             if h_state and ((x_check > x and abs(y-y_check)<10 ) or (x_check < x and abs(y-y_check)<80)):
                 x=x_check
@@ -199,19 +199,21 @@ class Extract(Resource):
                 title+=' '+head[i][1].strip() 
             if i ==len(head)-1:
                 if title and h_state and self.keyword[h_state]==None:
-                    self.keyword[h_state]=title.strip()
+                    if h_state == "dateWrite":
+                        self.keyword[h_state]=self.convert_date(title.strip())
+                    else:self.keyword[h_state]=title.strip()
                 break
 
-        print(self.keyword)
+        print("head: ", self.keyword)
         sign_sort=self.float_sort(signature)
         e_state=0
         sign=[]
         p=[]
         p_signature=[]
         for i in range(len(sign_sort)-1,-1,-1):
-            type=self.check_setting(sign_sort[i][1],setting)
+            type=self.check_setting(sign_sort[i][1],setting)[0]
             text=sign_sort[i][1].strip()
-            #print('text:',sign_sort[i][1],'e_state:',e_state)
+            #print('text:',sign_sort[i][1],'e_state:',e_state ," type: ",type)
             if text[-1] ==')' or e_state == 3:
                 if e_state !=0:
                     #print('collect sign:{}'.format(sign))
@@ -228,7 +230,7 @@ class Extract(Resource):
                 p_name.insert(0,sign_sort[i][0])
                 #print([correct(i) for i in deepcut.tokenize(sign_sort[i][1])])
                 #print('e_state: ',e_state,'text:',text,' next: ',sign_sort[i-1][1] ,' check: ',self.check_setting(sign_sort[i-1][1],setting))
-                if(text[0] == '(' or self.check_setting(sign_sort[i-1][1],setting)):
+                if(text[0] == '(' or self.check_setting(sign_sort[i-1][1],setting)[0]):
                     name.insert(0,text)
                     e_state =2
                     continue
@@ -238,7 +240,7 @@ class Extract(Resource):
                 #print('text:{} name:{} role:{}'.format(text,name,role))
                 #print('e_state: ',e_state,'text:',text,' next: ',sign_sort[i-1][1] ,' check: ',self.check_setting(sign_sort[i-1][1],setting))
                 if type=='endpoint':
-                    if (self.check_setting(sign_sort[i-1][1],setting)=='signature'):
+                    if (self.check_setting(sign_sort[i-1][1],setting)[0]=='signature'):
                         p_signature.append([self.summarize([sign_sort[i-1][0]])])
                     p_role.insert(0,sign_sort[i][0])
                     role.insert(0,text)
@@ -320,7 +322,7 @@ class Extract(Resource):
             else:
                 #sign=img_sign[add_sign[i][2][1]:add_sign[i+1][2][0],add_sign[i+1][0][3]:add_sign[i+1][1][2]].copy()
                 sign=img_sign[add_sign[i][1][1]:add_sign[i+1][1][0],add_sign[i+1][1][2]:add_sign[i+1][1][3]].copy()
-            cv2.imwrite(f's{i}.png',sign)
+            #cv2.imwrite(f's{i}.png',sign)
             gray = cv2.cvtColor(sign,cv2.COLOR_BGR2GRAY)
             image = img_as_float(gray)
             image_binary = image < 0.5
