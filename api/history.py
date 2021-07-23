@@ -1,3 +1,4 @@
+from ast import parse
 from flask import make_response,jsonify
 from flask_jwt_extended import jwt_required,get_jwt
 from flask_restful import Resource,reqparse
@@ -44,6 +45,25 @@ class LocModel:
         return result[0]
 
     @classmethod
+    def stats(cls,action):
+        mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
+        mycursor=mydb.cursor()
+        sql="SELECT * FROM history where action like '%{}%' ".format(action) 
+        mycursor.execute(sql)
+        result=mycursor.fetchall()
+        mydb.close()
+        list_attr=["historyId","documentId","userId","action","userAgent","dateUpdate"]
+        result_json=[]
+        if result:
+            for i in result:
+                loc=LocModel()
+                for j in range(len(i)): 
+                    setattr(loc,list_attr[j],i[j])
+                result_json.append(loc.json())
+        return result_json
+
+
+    @classmethod
     def list_loc(cls,limit,offset):
         mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
         mycursor=mydb.cursor()
@@ -60,6 +80,20 @@ class LocModel:
                     setattr(loc,list_attr[j],i[j])
                 result_json.append(loc.json())
         return result_json
+class GetStats(Resource):
+    parser = reqparse.RequestParser()
+    parser.add_argument('action',
+                        type=str,
+                        location='args',
+                        required=True,
+                        help="This action cannot be blank.")
+    @jwt_required()
+    def get(self):
+        params = GetStats.parser.parse_args()
+        return make_response({
+            'status':'success',
+            'data':LocModel.stats(params['action'])
+        },200)
 
 class ViewLoc(Resource):
     parser = reqparse.RequestParser()
@@ -73,7 +107,6 @@ class ViewLoc(Resource):
                         required=True,
                         location='args',
                         help="This offset cannot be blank.")
-
     @jwt_required()
     def get(self):
         params = ViewLoc.parser.parse_args()

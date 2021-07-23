@@ -6,7 +6,7 @@ from authen import UserRegister,UserLogin,UserLogout,ResetPassword,ForgetPasswor
 from user import UserModel,UserProfile,ManageUser,ViewManageUser
 from extract import Extract
 from upload import Upload
-from history import ViewLoc
+from history import ViewLoc,GetStats
 from document import ViewDocuments,ViewDocumentDetail,ViewPages
 from dotenv import load_dotenv
 from datetime import timedelta
@@ -117,6 +117,7 @@ api.add_resource(ResetPassword,'/authen/resetPassword/<token>')
 api.add_resource(ForgetPassword,'/authen/forget')
 api.add_resource(UserProfile,'/account/profile')
 api.add_resource(ViewLoc,'/account/history')
+api.add_resource(GetStats,'/account/history/stats')
 api.add_resource(ViewManageUser,'/account/manage')
 api.add_resource(ManageUser,'/account/manage/')
 api.add_resource(Upload,'/upload')
