@@ -48,19 +48,16 @@ class LocModel:
     def stats(cls,action):
         mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
         mycursor=mydb.cursor()
-        sql="SELECT * FROM history where action like '%{}%' ".format(action) 
+        sql="SELECT DATE(date_update) ,count(*) FROM history where action like '%{}%' group by DATE(date_update)".format(action) 
         mycursor.execute(sql)
         result=mycursor.fetchall()
         mydb.close()
-        list_attr=["historyId","documentId","userId","action","userAgent","dateUpdate"]
         result_json=[]
+        print(result)
         if result:
             for i in result:
-                loc=LocModel()
-                for j in range(len(i)): 
-                    setattr(loc,list_attr[j],i[j])
-                result_json.append(loc.json())
-        return result_json
+                result_json.append({"date_update":i[0],"value":i[1]})
+        return {"action":action,"stats": result_json}
 
 
     @classmethod
