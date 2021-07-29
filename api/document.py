@@ -181,8 +181,8 @@ class DocumentModel:
             SELECT documentId,title,sendAddress,receiver,dateWrite,date_update From document join history on  documentId = doc_id
             where documentId in ( 
             SELECT DISTINCT documentId 
-            from document join signature on document.documentId = signature.doc_id 
-                          join persons on persons.id_person = signature.person_id 
+            from document left join signature on document.documentId = signature.doc_id 
+                          left join persons on persons.id_person = signature.person_id 
             where documentId like '%{0}%' or title like '%{0}%' or sendAddress like '%{0}%'
                   or receiver like '%{0}%' or DATE_FORMAT(dateWrite,'%Y-%m-%d') like '%{0}%'
                   or signature_role like '%{0}%' or person_tname like '%{0}%' or person_fname like '%{0}%' or person_lname like '%{0}%')
