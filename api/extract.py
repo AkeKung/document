@@ -31,14 +31,15 @@ class Extract(Resource):
             "sendAddress": None,
             "receiver": None,
             "dateWrite": None,
-            "signature": None,
         }
     
-    @classmethod
-    def load_setting(cls):
+    def load_setting(self,type):
         mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
         mycursor = mydb.cursor()
-        mycursor.execute("SELECT * FROM keyword_setting")
+        sql = "SELECT * FROM keyword_setting where keyword_id < 5"
+        if type == 1 :
+            sql = sql[:-3]+">4"
+        mycursor.execute(sql)
         load_setting = mycursor.fetchall()
         mydb.close()
         dict={}
@@ -48,42 +49,43 @@ class Extract(Resource):
             dict[i[3]].append(i[2])
         return dict
 
-    def divide_img(self,orderPage):
-        set={orderPage[0],orderPage[-1]}
-        img=list(set)
-        #print('img:',img)
-        page=[]
-        for i in range(len(img)):
-            temp_img=cv2.imread(f"temp/{img[i]}.png")
-            scale_percent = 80 # percent of original size
-            width = int(temp_img.shape[1] * scale_percent / 100)
-            height = int(temp_img.shape[0] * scale_percent / 100)
-            dim = (width, height)
+    def read_data(self,orderPage,type):
+        #select only head and end page
+        #print('orderPage:',len(orderPage))
+        if type == 0: 
+            img = orderPage[0]
+        elif type ==1:
+            img = orderPage[-1]
+        #print('img:',img.items())
+        for i in img:
+            temp_img=cv2.imread(f"temp/{i}.png")
+        scale_percent = 80 # percent of original size
+        width = int(temp_img.shape[1] * scale_percent / 100)
+        height = int(temp_img.shape[0] * scale_percent / 100)
+        dim = (width, height)
     
          # resize image
-            rtemp_img = cv2.resize(temp_img, dim, interpolation = cv2.INTER_AREA)
-            if len(img) == 1:
-                page.append(rtemp_img[int(height/2):height, 0:width])
-            if i ==0:
-                page.insert(0,rtemp_img[0:int(height/3), 0:width])
+        rtemp_img = cv2.resize(temp_img, dim, interpolation = cv2.INTER_AREA)
+        if type == 0:
+            d_img=rtemp_img[0:int(height/3), 0:width]
+        elif type == 1:
+            #j=0
+            #print(f"page:{self.read_page()}")
+            #for i in self.read_page():
+            #    j+=1
+            k = len(self.read_page())
+            print(f"num: {k}")
+            if k==1:
+                d_img=rtemp_img[int(height/2):height, 0:width]
             else:
-                page.append(rtemp_img[0:height,0:width])
-        return page
-
-    def read_data(self,orderPage):
-        #select only head and end page
-        imgs=self.divide_img(orderPage)
-        opt_imgs=[]
-        text=[]
-        for i in imgs:
-            gray = cv2.cvtColor(i,cv2.COLOR_BGR2GRAY)
-            #ret, bw_img = cv2.threshold(gray,2,255,cv2.THRESH_BINARY)
-            #cv2.imwrite('binary'+str(i)+'.png',gray)
-            kernel = np.ones((3,3), np.uint8)
-            img_dilation = cv2.erode(gray,kernel,iterations = 1)
-            opt_imgs.append(img_dilation)
-            text.append(reader.readtext(img_dilation))
-        return [text[0],text[1],imgs[0],imgs[1]]#opt_imgs[0],opt_imgs[1]]
+                d_img=rtemp_img[0:height,0:width]
+        gray = cv2.cvtColor(d_img,cv2.COLOR_BGR2GRAY)
+        #ret, bw_img = cv2.threshold(gray,2,255,cv2.THRESH_BINARY)
+        #cv2.imwrite('binary'+str(i)+'.png',gray)
+        kernel = np.ones((3,3), np.uint8)
+        img_dilation = cv2.erode(gray,kernel,iterations = 1)
+        #opt_imgs.append(img_dilation)
+        return [reader.readtext(img_dilation),d_img]#opt_imgs[0],opt_imgs[1]]
 
     def float_sort(self,img):
         floats=[]
@@ -154,20 +156,21 @@ class Extract(Resource):
                         return i,input.replace(key,"").strip()
         return False,""
 
-    def classify_keyword(self,head,signature,img_sign):
+    def classify_head(self,head):
         h_state=''
         title=''
         y=0
         x=0
-        setting=self.load_setting()
+        self.setting=self.load_setting(0)
+        k=0
         for i in range(len(head)): 
-            type,pre_temp=self.check_setting(head[i][1],setting)
+            type,pre_temp=self.check_setting(head[i][1],self.setting)
             p=self.summarize([head[i][0]])
             y_check=(p[0]+p[1])/2
             x_check=(p[2]+p[3])/2
             #print(f'type: {type} data: {head[i][1]} pre(h_state): {h_state} title: {title} x: {x_check} y: {y_check}' )
             if type:
-                setting.pop(type,None)
+                self.setting.pop(type,None)
                 x=x_check
                 y=y_check
                 #print(f'x: {x} y: {y}' )
@@ -175,21 +178,10 @@ class Extract(Resource):
                     if h_state == "dateWrite":
                         self.keyword[h_state]=self.convert_date(title.strip())
                     else: self.keyword[h_state]=title.strip()
+                    k+=1
+                    if k == 4: break
                     title=''
                 h_state=type
-                #temp=pre_temp.split()#head[i][1].split()
-                # if type == 'dateWrite':
-                #     if len(temp) > 1:
-                #         day=[]
-                #         for j in temp[1:]:
-                #             day.append(j)
-                #         if len(day) < 3:
-                #             day.append(head[i+1][1]) 
-                #         self.keyword[type]=self.convert_date(' '.join(day))
-                #     else:
-                #         self.keyword[type]=self.convert_date((head[i+1][1]+' '+head[i+2][1]).replace('เดือน','').replace('ปี','').strip())
-                #         h_state=''
-                #     type=False
                 title+=pre_temp
                 if i < len(head)-1:
                     continue
@@ -205,15 +197,20 @@ class Extract(Resource):
                 break
 
         print("head: ", self.keyword)
+        return self.keyword
+        
+    def classify_signature(self,signature,img_sign):
         sign_sort=self.float_sort(signature)
+        self.setting=self.load_setting(1)
         e_state=0
         sign=[]
         p=[]
         p_signature=[]
         for i in range(len(sign_sort)-1,-1,-1):
-            type=self.check_setting(sign_sort[i][1],setting)[0]
+            type=self.check_setting(sign_sort[i][1],self.setting)[0]
             text=sign_sort[i][1].strip()
             #print('text:',sign_sort[i][1],'e_state:',e_state ," type: ",type)
+            check = self.check_setting(sign_sort[i-1][1],self.setting)[0]
             if text[-1] ==')' or e_state == 3:
                 if e_state !=0:
                     #print('collect sign:{}'.format(sign))
@@ -230,7 +227,7 @@ class Extract(Resource):
                 p_name.insert(0,sign_sort[i][0])
                 #print([correct(i) for i in deepcut.tokenize(sign_sort[i][1])])
                 #print('e_state: ',e_state,'text:',text,' next: ',sign_sort[i-1][1] ,' check: ',self.check_setting(sign_sort[i-1][1],setting))
-                if(text[0] == '(' or self.check_setting(sign_sort[i-1][1],setting)[0]):
+                if(text[0] == '(' or check):
                     name.insert(0,text)
                     e_state =2
                     continue
@@ -240,7 +237,7 @@ class Extract(Resource):
                 #print('text:{} name:{} role:{}'.format(text,name,role))
                 #print('e_state: ',e_state,'text:',text,' next: ',sign_sort[i-1][1] ,' check: ',self.check_setting(sign_sort[i-1][1],setting))
                 if type=='endpoint':
-                    if (self.check_setting(sign_sort[i-1][1],setting)[0]=='signature'):
+                    if (check=='signature'):
                         p_signature.append([self.summarize([sign_sort[i-1][0]])])
                     p_role.insert(0,sign_sort[i][0])
                     role.insert(0,text)
@@ -290,9 +287,8 @@ class Extract(Resource):
                     "personRole":sign[i][0],
                     "signatureImg":self.save_signature(self.keyword['documentId'],i,eximg_sign[i])
                     })
-        self.keyword['signature']=key_signature
-        print(key_signature)
-        return self.keyword
+        print(f"signature: {key_signature}")
+        return {'signature':key_signature}
 
     def save_signature(self,documentId,i,img_sign):
         cv2.imwrite('temp/sign_'+str(i)+'.png',img_sign)
@@ -314,7 +310,7 @@ class Extract(Resource):
 
     def extract_sign(self,img_sign,add_sign):
         s=[]
-        print(add_sign)
+        #print(add_sign)
         for i in range(len(add_sign)-1): 
             if(isinstance(add_sign[i][0],int)):
                 #sign=img_sign[add_sign[i][0][1]:add_sign[i+1][2][0],add_sign[i+1][0][3]:add_sign[i+1][1][2]].copy()
@@ -351,7 +347,7 @@ class Extract(Resource):
             #print('start',len(sign))
             e=[]
             l=[]
-            print('line: ',lines,' type:',type(lines))
+            #print('line: ',lines,' type:',type(lines))
             if isinstance(lines,np.ndarray):
                 for line in lines:
                     row=[]
@@ -386,7 +382,14 @@ class Extract(Resource):
         Extractparser.add_argument('documentId',
                             type=int,
                             required=True,
-                            help="This field cannot be blank."
+                            help="This field cannot be blank.",
+                            location='args'
+                            )
+        Extractparser.add_argument('type',
+                            type=int,
+                            required=True,
+                            help="This field cannot be blank.",
+                            location='args'
                             )
         Extractparser.add_argument('pages',
                             type=list,
@@ -398,30 +401,48 @@ class Extract(Resource):
         if not claims['is_admin']:
             return {'message': 'Admin privilege required'},403
         Data = Extractparser.parse_args()
-        orderPage=[]
-        for i in Data['pages']:
-            for j,k in i.items():
-                orderPage.append(int(j))
-                DocumentModel.save_page(Data['documentId'],int(j),k)
-        self.keyword['documentId']=Data['documentId']
+        self.keyword["documentId"]=Data['documentId']
         start_time = time.time()
-        head,signature,img_head,img_sign=self.read_data(orderPage)
-        print ("extract time --- %s seconds ---" % (time.time() - start_time))
-        print('head: ')
-        for i in head:
-            print (i)
-        print('signature:')
-        for i in signature:
-            print(i)
-        start_time=time.time()
-        result=self.classify_keyword(head,signature,img_sign)
-        print ("classify_keyword time --- %s seconds ---" % (time.time() - start_time))
-        with open('temp/temp.json','w',encoding = 'utf-8') as r: 
-            json.dump(result,r,sort_keys=True,default=default,ensure_ascii=False)
+        if Data['type'] == 0:
+            with open('temp/page.json','w',encoding = 'utf-8') as r: 
+                json.dump(Data['pages'],r,sort_keys=True,default=default,ensure_ascii=False)
+        # orderPage=[]
+        # h=0
+        # for i in Data['pages']:
+        #     for j,k in i.items():
+        #         orderPage.append(int(j))
+        #         DocumentModel.save_page(Data['documentId'],h,k)
+        #         h+=1
+            head=self.read_data(Data['pages'],0)[0]
+            print ("extract head time --- %s seconds ---" % (time.time() - start_time))
+            #print('head: ')
+            #for i in head:
+            #    print (i)
+            start_time=time.time()
+            result=self.classify_head(head)
+            print ("classify_head time --- %s seconds ---" % (time.time() - start_time))
+            with open('temp/temp.json','w',encoding = 'utf-8') as r: 
+                json.dump(result,r,sort_keys=True,default=default,ensure_ascii=False)
+
+        elif Data['type'] == 1:            
+            signature,img_sign=self.read_data(Data['pages'],1) 
+            print ("extract signature time --- %s seconds ---" % (time.time() - start_time))
+            #print('signature:')
+            #for i in signature:
+            #    print(i)
+            start_time=time.time()
+            result=self.classify_signature(signature,img_sign)
+            print ("classify_signature time --- %s seconds ---" % (time.time() - start_time))
+
         return make_response({
             'message': 'success',
             'data': result
         },200)
+    @classmethod
+    def read_page(cls):
+        with open('temp/page.json', 'r') as openfile:
+            json_object = json.load(openfile)
+        return json_object
 
     def save_pre_to_db(self):
         mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
@@ -502,6 +523,13 @@ class Extract(Resource):
                 value=datetime.strptime(Data[i],"%a, %d %b %Y %H:%M:%S %Z").date()
             setattr(doc,i,value)
         doc.save_to_db()
+        pages=self.read_page()
+        k=0
+        for ps in pages:
+            for m,n in ps.items():
+                #print(f"pages key: {m} value: {n}")
+                DocumentModel.save_page(doc.documentId,k,n)
+            k+=1
         loc=LocModel()
         time=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         dict_loc={'documentId':doc.documentId,'userId':claims['sub'],'action':'Insert document','userAgent':request.headers.get('User-Agent'),'dateUpdate':time}

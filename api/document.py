@@ -162,8 +162,11 @@ class DocumentModel:
     def delete_doc(cls,id):
         mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
         mycursor = mydb.cursor()
-        query = "delete from document where documentId = {}".format(id)
-        mycursor.execute(query)
+        query = """delete from document where documentId = {0};
+                   SET SQL_SAFE_UPDATES = 0;
+                   delete from pages where doc_id {0};
+                   SET SQL_SAFE_UPDATES = 1;""".format(id)
+        mycursor.execute(query,multi=True)
         mydb.commit()
         mydb.close()
 
