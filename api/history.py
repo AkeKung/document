@@ -5,19 +5,20 @@ from flask_restful import Resource,reqparse
 import mysql.connector,os
 
 class LocModel:
-    def __init__(self,historyId=None,documentId=None,userId=None,action=None,userAgent=None,dateUpdate=None):
+    def __init__(self,historyId=None,documentId=None,userId=None,action=None,userAgent=None,dateUpdate=None,username=None):
         self.historyId  = historyId,
         self.documentId = documentId,
         self.userId     = userId,
         self.action     = action,
         self.userAgent  = userAgent,
-        self.dateUpdate = dateUpdate
+        self.dateUpdate = dateUpdate,
+        self.username = username
 
     def json(self):
         return {
             "historyId"     : self.historyId,
             "documentId"    : self.documentId,
-            "userId"        : self.userId,
+            "username"      : self.username,
             "action"        : self.action,
             "userAgent"     : self.userAgent,
             "dateUpdate"    : self.dateUpdate
@@ -64,11 +65,11 @@ class LocModel:
     def list_loc(cls,limit,offset):
         mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
         mycursor=mydb.cursor()
-        sql="SELECT * FROM history order by id_history DESC limit %s offset %s"
+        sql="SELECT  id_history,username,doc_id,action,user_agent,date_update,u_id FROM history left join user on user_id=u_id group by id_history having id_history limit %s offset %s"
         mycursor.execute(sql, (limit,offset))
         result = mycursor.fetchall()
         mydb.close()
-        list_attr=["historyId","documentId","userId","action","userAgent","dateUpdate"]
+        list_attr=["historyId","username","documentId","action","userAgent","dateUpdate","userId"]
         result_json=[]
         if result:
             for i in result:
@@ -79,17 +80,17 @@ class LocModel:
         return result_json
 class GetStats(Resource):
     parser = reqparse.RequestParser()
-    parser.add_argument('action',
-                        type=str,
+    parser.add_argument('month',
+                        type=int,
                         location='args',
-                        required=True,
                         help="This action cannot be blank.")
     @jwt_required()
     def get(self):
         params = GetStats.parser.parse_args()
+        if params['month']
         return make_response({
             'status':'success',
-            'data':LocModel.stats(params['action'])
+            'data':LocModel.stats("insert")
         },200)
 
 class ViewLoc(Resource):

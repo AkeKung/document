@@ -435,7 +435,7 @@ class Extract(Resource):
             print ("classify_signature time --- %s seconds ---" % (time.time() - start_time))
 
         return make_response({
-            'message': 'success',
+            'status': 'success',
             'data': result
         },200)
     @classmethod

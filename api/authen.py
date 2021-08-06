@@ -64,9 +64,15 @@ class UserRegister(Resource):
             
         print(user.json())
         user.save_to_db()
+        access_token = create_access_token(identity=user.userId, fresh=True,expires_delta=timedelta(hours=3))
+        refresh_token = create_refresh_token(user.userId)
         return {
             'status':'success',
-            "message": "User created successfully."}, 200
+            "data": {
+                "access_token":access_token,
+                "refresh_token":refresh_token
+                    }
+                }, 200
 
     #resources/authen.py
 class UserLogin(Resource):
@@ -99,7 +105,7 @@ class UserLogin(Resource):
         user = UserModel.find_by_user(data['username/email'],type)
         if user: 
             if check_password_hash(user.password,data['password']):
-                access_token = create_access_token(identity=user.userId, fresh=True,expires_delta=timedelta(hours=1))
+                access_token = create_access_token(identity=user.userId, fresh=True,expires_delta=timedelta(hours=3))
                 refresh_token = create_refresh_token(user.userId)
                 user.status ="on"
                 user.lastConnect= datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -159,8 +165,7 @@ class ForgetPassword(Resource):
             SendEmail.send_reset_email(user,endpoint)
             return {'status':'success',
                 'data':{
-                    'message':'send transactional email'
-                    ,'access_token':token
+                    'access_token':token
                 }},200
         else:
             return {
@@ -195,8 +200,13 @@ class ResetPassword(Resource):
         hashed = generate_password_hash(data['password'],method='sha256')
         setattr(user,'password',hashed)
         user.update_to_db()
+        access_token = create_access_token(identity=user.userId, fresh=True,expires_delta=timedelta(hours=3))
+        refresh_token = create_refresh_token(user.userId)
         return {
             "status":"success",
-            "data":"Reset Password Complete"
+            "data":{
+                "access_token":access_token,
+                "refresh_token":refresh_token
+            }
         },200
 
