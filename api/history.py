@@ -70,7 +70,7 @@ class LocModel:
         mycursor.execute(sql, (limit,offset))
         result = mycursor.fetchall()
         mydb.close()
-        list_attr=["historyId","username","documentId","userId","action","userAgent","dateUpdate"]
+        list_attr=["historyId","username","documentId","action","userAgent","dateUpdate","userId"]
         result_json=[]
         if result:
             for i in result:
