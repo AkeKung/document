@@ -265,7 +265,9 @@ class ManageUser(Resource):
     Editparser.add_argument('permiss',
                             type=str,
                             required=True,
+                            location='args',
                             help="This field cannot be blank.")
+    """
     Editparser.add_argument('email',
                             type=str,
                             required=True,
@@ -284,6 +286,7 @@ class ManageUser(Resource):
                             help="This field cannot be blank.")
     Editparser.add_argument('password',type=str)
     Editparser.add_argument('passwordConfirm',type=str)
+    """
     # Editparser.add_argument('passwordAdmin',
     #                         type=int,
     #                         required=True,
@@ -314,9 +317,10 @@ class ManageUser(Resource):
             return {
                 'status': 'failed',
                 'message': 'Admin privilege required'},403
-        params=ManageUser.parser.parse_args()
-        data = ManageUser.Editparser.parse_args()
+        params=ManageUser.parser.parse_args()        
         user=UserModel.find_by_id(params['userId'])
+        data = ManageUser.Editparser.parse_args()
+        """
         if not re.search(regex, data['email']):
                     return {'status':'failed',
                             "message": "Invalid Email"}, 400
@@ -328,7 +332,7 @@ class ManageUser(Resource):
         if UserModel.find_by_user(data['email'],'email') and user.email != data['email']:
                     return {'status':'failed',
                             'message': "A user with that email already exists"},400
-        #print(user.json())
+        #
         for i in data:
             if i != 'userId' and i != 'passwordConfirm':
                 if i=='password':
@@ -342,8 +346,10 @@ class ManageUser(Resource):
                 else:
                     #print(i)
                     setattr(user,i,data[i])
+        """
+        setattr(user,"permiss",data["permiss"]) 
         user.update_to_db()
-        return make_response({'status':'success',
+        return make_response({'status':'success', 
                 'data': user.get_manage()
                 },200)
 

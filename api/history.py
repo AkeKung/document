@@ -1,4 +1,5 @@
 from ast import parse
+from datetime import datetime
 from flask import make_response,jsonify
 from flask_jwt_extended import jwt_required,get_jwt
 from flask_restful import Resource,reqparse
@@ -46,10 +47,10 @@ class LocModel:
         return result[0]
 
     @classmethod
-    def stats(cls,action):
+    def stats(cls,action,month):
         mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
         mycursor=mydb.cursor()
-        sql="SELECT DATE(date_update) ,count(*) FROM history where action like '%{}%' group by DATE(date_update)".format(action) 
+        sql="SELECT DATE(date_update) ,count(*) FROM history where action like '%{}%' and Month(date_update) = {} group by DATE(date_update)".format(action,month) 
         mycursor.execute(sql)
         result=mycursor.fetchall()
         mydb.close()
@@ -69,7 +70,7 @@ class LocModel:
         mycursor.execute(sql, (limit,offset))
         result = mycursor.fetchall()
         mydb.close()
-        list_attr=["historyId","username","documentId","action","userAgent","dateUpdate","userId"]
+        list_attr=["historyId","username","documentId","userId","action","userAgent","dateUpdate"]
         result_json=[]
         if result:
             for i in result:
@@ -84,13 +85,26 @@ class GetStats(Resource):
                         type=int,
                         location='args',
                         help="This action cannot be blank.")
+    parser.add_argument('action',
+                        type=str,
+                        required=True,
+                        location='args',
+                        help="This action cannot be blank.")
     @jwt_required()
     def get(self):
         params = GetStats.parser.parse_args()
-        if params['month']
+        if params['month']:
+            if params['month']>12 or params['month'] <1:
+                return {{
+                    "status": "failed",
+                    "message": "Not Invalid month"},400}
+            else:
+                month = params['month']
+        else: 
+            month = datetime.today().month
         return make_response({
             'status':'success',
-            'data':LocModel.stats("insert")
+            'data':LocModel.stats(params['action'],month)
         },200)
 
 class ViewLoc(Resource):
