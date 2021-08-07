@@ -31,7 +31,6 @@ class UserModel:
                 "fname":self.fname,
                 "lname":self.lname,
                 "email":self.email,
-                "password":self.password,
                 "permiss":self.permiss,
                 "picture":self.picture,
                 "status":self.status,
@@ -186,11 +185,7 @@ class UserProfile(Resource):
         profileParser.add_argument('fname',type=str)
         profileParser.add_argument('lname',type=str)
         profileParser.add_argument('email',type=str)
-        profileParser.add_argument('password',
-                                    type=str,
-                                    required=True,
-                                    help="This field cannot be blank."
-                                    )
+        profileParser.add_argument('status',type=str)
         user=UserModel.find_by_id(get_jwt()['sub'])
         if user:
             data = profileParser.parse_args()
@@ -205,23 +200,26 @@ class UserProfile(Resource):
             if UserModel.find_by_user(data['email'],'email') and user.email != data['email']:
                     return {'status':'failed',
                             'message': "A user with that email already exists"},400
-            if check_password_hash(user.password,data['password']):
-                user.username=data['username']
-                user.tname=data['tname']
-                user.fname=data['fname']
-                user.lname=data['lname']
-                user.email=data['email']
-                user.update_to_db()
-                edit={}
-                for key,value in data.items():
-                    if key != 'password':
-                        edit[key]=value
-                return {'status':'success',
-                        'data': edit
-                },200
-            else:
-                return  {'status':'failed',
-                        'message': "Password incorrect"},400
+            user.username=data['username']
+            user.tname=data['tname']
+            user.fname=data['fname']
+            user.lname=data['lname']
+            user.email=data['email']
+            user.status=data['status']
+            user.update_to_db()
+            return make_response({'status':'success',
+                    'data': {
+                        "userId":user.userId,
+                        "username":user.username,
+                        "tname":user.tname,
+                        "fname":user.fname,
+                        "lname":user.lname,
+                        "email":user.email,
+                        "permiss":user.permiss,
+                        "picture":user.picture,
+                        "status":user.status
+                    }
+            },200)
         else:
             return {'status':'failed',
                     'message': "the user doesn't exist"},400
