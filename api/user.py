@@ -11,7 +11,7 @@ from firebase import storage
 
 class UserModel:
 
-    def __init__(self,username,email,password,_id =-1,tname = None,fname = None,lname = None,permiss="user",picture = None,status="off",lastConnect=None):
+    def __init__(self,username,email,password,_id =-1,tname = None,fname = None,lname = None,permiss="user",picture = None,status="invisible",lastConnect=None):
         self.userId      =   _id
         self.username    =   username
         self.tname       =   tname
@@ -50,8 +50,8 @@ class UserModel:
     def save_to_db(self):
         mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
         mycursor = mydb.cursor()
-        query = "INSERT INTO user (u_id, username, email, password, permiss ,status,picture) VALUES (%s,%s,%s,%s,%s,%s,%s)"
-        mycursor.execute(query,(self.userId,self.username, self.email, self.password,self.permiss,self.status,self.picture))
+        query = "INSERT INTO user (u_id, username, email, password, permiss ,status,picture,last_connect) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)"
+        mycursor.execute(query,(self.userId,self.username, self.email, self.password,self.permiss,self.status,self.picture,self.lastConnect))
         mydb.commit()
         mydb.close()
 
@@ -153,6 +153,37 @@ class UserModel:
             list.append(user.get_manage())
         return list
 
+    @classmethod
+    def edit_status(cls,id,status):
+        mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
+        mycursor =  mydb.cursor()
+        query = f"UPDATE user SET status = '{status}' where u_id = {id}"
+        mycursor.execute(query)
+        mydb.commit()
+        mydb.close()
+        return status
+
+    @classmethod
+    def delete_user(cls,id):
+        mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
+        mycursor =  mydb.cursor()
+        query = f"Delete from user where u_id = {id}"
+        mycursor.execute(query)
+        mydb.commit()
+        mydb.close()
+
+
+    @classmethod
+    def suspended_user(cls,id,time):
+        mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
+        mycursor =  mydb.cursor()
+        query = "UPDATE user SET status = 'suspended', last_connect = %s where u_id = %s"
+        mycursor.execute(query,(time,id)) 
+        mydb.commit()
+        mydb.close()
+
+
+
 regex = '^(\w|\.|\_|\-)+[@](\w|\_|\-|\.)+[.]\w{2,3}$'
 
 class UserProfile(Resource):
@@ -249,7 +280,42 @@ class UserProfile(Resource):
         user.update_to_db()
         return {
                 'status':'success',
-                'data': user.picture}
+                'data': user.picture},200
+
+    @jwt_required()
+    def delete(self):
+        user=UserModel.find_by_id(get_jwt()['sub'])
+        if (user):
+            UserModel.delete_user(user.userId)
+            return {"status" :"success",
+                    "data": "Complete delete user"
+            }
+        else:
+            return {'status':'failed',
+                    'message': "the user doesn't exist"},400
+
+
+class Status(Resource):
+    parser = reqparse.RequestParser()
+    parser.add_argument('status',
+                            type=str,
+                            required=True,
+                            help="This field cannot be blank.",
+                            location='args'
+                            )
+    @jwt_required()
+    def put(self):
+        user=UserModel.find_by_id(get_jwt()['sub'])
+        data = Status.parser.parse_args()
+        if (user):
+            return {"status": "success",
+                    "data":  UserModel.edit_status(user.userId,data["status"]) 
+            },200
+        else:
+            return {'status':'failed',
+                    'message': "the user doesn't exist"},400
+
+
 
 class ManageUser(Resource):                           
     parser = reqparse.RequestParser()
@@ -265,6 +331,7 @@ class ManageUser(Resource):
                             required=True,
                             location='args',
                             help="This field cannot be blank.")
+    
     """
     Editparser.add_argument('email',
                             type=str,
@@ -351,6 +418,63 @@ class ManageUser(Resource):
                 'data': user.get_manage()
                 },200)
 
+class SuspendedUser(Resource):
+    parser = reqparse.RequestParser()
+    parser.add_argument('userId',
+                        type=int,
+                        required=True,
+                        help="This field cannot be blank.",
+                        location='args'
+                        )
+    parser.add_argument('type',
+                        type=int,
+                        required=True,
+                        help="This field cannot be blank.",
+                        location='args'
+                        )
+    timeparser = reqparse.RequestParser()
+    timeparser.add_argument('days',
+                        type=int,
+                        required=True,
+                        help="This field cannot be blank.",
+                        )
+    timeparser.add_argument('hours',
+                        type=int,
+                        required=True,
+                        help="This field cannot be blank.",
+                        )
+    timeparser.add_argument('minutes',
+                        type=int,
+                        required=True,
+                        help="This field cannot be blank.",
+                        )
+    
+    @jwt_required()
+    def put(self):
+        claims = get_jwt()
+        if not claims['is_admin']:
+            return {
+                'status': 'failed',
+                'message': 'Admin privilege required'},403
+        data = SuspendedUser.parser.parse_args()
+        if  data["userId"] == get_jwt()['sub']:
+            return {"status" : "failed",
+                    "message": "Can't to suspended yourself"}
+        else : 
+            time = None
+            result = "Complete Suspended user!!!"
+            if data["type"]==1:
+                print("check")
+                Time = SuspendedUser.timeparser.parse_args()
+                if not (Time["days"] == 0 and Time["hours"] ==0 and Time["minutes"] ==0):
+                    time= datetime.now()+timedelta(days=Time["days"],hours= Time["hours"],minutes=Time["minutes"])
+                    result= time
+            UserModel.suspended_user(data["userId"],time) 
+            return make_response(
+                {"status":"success",
+                    "data" : result
+            },200)
+
 class ViewManageUser(Resource):
 
     paramsparser = reqparse.RequestParser()
@@ -403,7 +527,7 @@ class ViewManageUser(Resource):
         if not claims['is_admin']:
             return {
                 'status': 'failed',
-                'message': 'Admin privilege required'},403
+                'message': 'Admin privilege required'},403 
         params = ViewManageUser.paramsparser.parse_args()
         if params['limit'] < 0:
             return {
@@ -434,3 +558,4 @@ class ViewManageUser(Resource):
                 'status':'success',
                 'data':UserModel.get_user(params['limit'],params['offset'],condition)
         },200)
+    

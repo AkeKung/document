@@ -1,9 +1,10 @@
+from flask.helpers import make_response
 from flask_restful import Resource,reqparse
 from user import UserModel
 from flask_jwt_extended import create_access_token,create_refresh_token
 from werkzeug.security import generate_password_hash,check_password_hash
 from datetime import datetime,timedelta
-import re
+import re,time
 from blacklist import BLACKLIST
 from flask_jwt_extended import jwt_required,get_jwt
 from sendemail import SendEmail
@@ -60,19 +61,24 @@ class UserRegister(Resource):
 
                 
         hashed = generate_password_hash(data['password'],method='sha256')
-        user = UserModel(data['username'],data['email'],hashed,_id = UserModel.current_user()+1,picture="https://firebasestorage.googleapis.com/v0/b/projectdoc-5af7b.appspot.com/o/template%2FArtboard%201.png?alt=media&token=b74d1752-21ae-4255-8d37-1440d1c967d5")
-            
+        time = datetime.now()
+        user = UserModel(data['username'],data['email'],hashed,_id = UserModel.current_user()+1,status="online",lastConnect=time.strftime('%Y-%m-%d %H:%M:%S'),picture="https://firebasestorage.googleapis.com/v0/b/projectdoc-5af7b.appspot.com/o/template%2FArtboard%201.png?alt=media&token=b74d1752-21ae-4255-8d37-1440d1c967d5")
         print(user.json())
         user.save_to_db()
         access_token = create_access_token(identity=user.userId, fresh=True,expires_delta=timedelta(hours=3))
         refresh_token = create_refresh_token(user.userId)
-        return {
+        return make_response({
             'status':'success',
             "data": {
+                "userId":user.userId,
+                "username":user.username,
+                "permiss":user.permiss,
+                "status":user.status,
+                "picture":user.picture,
+                "expires_token":time+timedelta(hours=3) ,
                 "access_token":access_token,
-                "refresh_token":refresh_token
-                    }
-                }, 200
+                "refresh_token":refresh_token}
+                }, 200)
 
     #resources/authen.py
 class UserLogin(Resource):
@@ -105,19 +111,41 @@ class UserLogin(Resource):
         user = UserModel.find_by_user(data['username/email'],type)
         if user: 
             if check_password_hash(user.password,data['password']):
+                if user.status == "suspended":
+                    if user.lastConnect :
+                        if datetime.now() <= user.lastConnect:
+                            diff = timedelta(seconds=(user.lastConnect - datetime.now()).total_seconds())
+                            t = str(diff).split(':')
+                            return {
+                                "status": "failed",
+                                "message" : "Your account is suspended, remain time {} Hours {} Minutes {} Seconds".format(t[0],t[1],int(float(t[2]
+                                )))
+                                },403 
+                    else :
+                        return {
+                            "status":"failed",
+                            "message": "Your account is suspended, please contact admin." 
+                        },403
+                time = datetime.now()
                 access_token = create_access_token(identity=user.userId, fresh=True,expires_delta=timedelta(hours=3))
                 refresh_token = create_refresh_token(user.userId)
-                user.status ="on"
-                user.lastConnect= datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                user.status ="online"
+                user.lastConnect= time.strftime('%Y-%m-%d %H:%M:%S')
                 #print(user.json())
                 user.update_to_db()
-                return {
+                return make_response({
                     'status': 'success',
                     "data":{
+                        "userId":user.userId,
+                        "username":user.username,
+                        "permission":user.permiss,
+                        "status":user.status,
+                        "picture":user.picture,
+                        "expires_token":time+timedelta(hours=3) ,
                         "access_token": access_token,
                         "refresh_token":refresh_token
                     }
-                    },200
+                    },200)
             return {
                 'status':'failed',
                 "message": "Password incorrect"}, 400        
@@ -132,7 +160,7 @@ class UserLogout(Resource):
         jti=get_jwt()
         BLACKLIST.add(jti['jti'])
         user=UserModel.find_by_id(jti['sub'])
-        user.status ="off"
+        user.status ="invisible"
         user.lastConnect= datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         user.update_to_db()
         #print(user.json())
@@ -209,4 +237,3 @@ class ResetPassword(Resource):
                 "refresh_token":refresh_token
             }
         },200
-

@@ -3,7 +3,7 @@ from flask_restful import Api,Resource
 from flask_jwt_extended import JWTManager,jwt_required,create_access_token,get_jwt,get_jwt_identity
 from blacklist import BLACKLIST
 from authen import UserRegister,UserLogin,UserLogout,ResetPassword,ForgetPassword
-from user import UserModel,UserProfile,ManageUser,ViewManageUser
+from user import UserModel,UserProfile,ManageUser,ViewManageUser,SuspendedUser,Status
 from extract import Extract
 from upload import Upload
 from history import ViewLoc,GetStats
@@ -116,10 +116,12 @@ api.add_resource(UserLogout,'/authen/logout')
 api.add_resource(ResetPassword,'/authen/resetPassword/<token>')
 api.add_resource(ForgetPassword,'/authen/forget')
 api.add_resource(UserProfile,'/account/profile')
+api.add_resource(Status,'/account/status')
 api.add_resource(ViewLoc,'/account/history')
 api.add_resource(GetStats,'/account/history/stats')
 api.add_resource(ViewManageUser,'/account/manage')
 api.add_resource(ManageUser,'/account/manage/')
+api.add_resource(SuspendedUser,'/account/suspend/')
 api.add_resource(Upload,'/upload')
 api.add_resource(TokenRefresh,'/refresh')
 api.add_resource(Extract,'/upload/extract')
