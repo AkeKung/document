@@ -80,8 +80,15 @@ class PersonModel:
         check=name.split('.')
         if len(check) > 1:
             l=name.rfind('.')+1
-            result = name[l:].split()
-            result.insert(0,name[:l])
+            name_not_point = name[l:].split()
+            t=name[:l]
+            result =[]
+            for i in range(len(name_not_point)):
+                if i> len(name_not_point)-3:
+                    result.append(name_not_point[i])
+                else:
+                    t+=name_not_point[i]
+            result.insert(0,t)
             return result
         else:
             temp = name.split()

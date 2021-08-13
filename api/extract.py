@@ -68,7 +68,7 @@ class Extract(Resource):
             #print(f"page:{self.read_page()}")
             #for i in self.read_page():
             #    j+=1
-            if page==0:
+            if page=="0":
                 d_img=rtemp_img[int(height/2):height, 0:width]
             else:
                 d_img=rtemp_img[0:height,0:width]
@@ -203,30 +203,35 @@ class Extract(Resource):
         for i in range(len(sign_sort)-1,-1,-1):
             type=self.check_setting(sign_sort[i][1],self.setting)[0]
             text=sign_sort[i][1].strip()
-            #print('text:',sign_sort[i][1],'e_state:',e_state ," type: ",type)
+            print('text:',sign_sort[i][1],'e_state:',e_state ," type: ",type)
             check = self.check_setting(sign_sort[i-1][1],self.setting)[0]
             if text[-1] ==')' or e_state == 3:
                 if e_state !=0:
                     #print('collect sign:{}'.format(sign))
+                    print(f"name {name} role {role}")
                     if name and role:
                         sign.insert(0,[("".join(role)),(" ".join(name).strip())])
                         p.insert(0,[self.summarize(p_role),self.summarize(p_name)])
                         p_signature.insert(0,[self.summarize(p_role),self.summarize(p_name)])
-                e_state=1
+                if text[-1] ==')':
+                    e_state=1
+                else: 
+                    e_state=0
                 name=[]
                 role=[]
                 p_name=[]
                 p_role=[]
             if e_state==1:
-                p_name.insert(0,sign_sort[i][0])
                 #print([correct(i) for i in deepcut.tokenize(sign_sort[i][1])])
                 #print('e_state: ',e_state,'text:',text,' next: ',sign_sort[i-1][1] ,' check: ',self.check_setting(sign_sort[i-1][1],setting))
                 if(text[0] == '(' or check):
-                    name.insert(0,text)
+                    p_name.insert(0,sign_sort[i][0])
+                    name.insert(0,text.replace('(',''))
                     e_state =2
                     continue
                 else:
-                    name.insert(0,spell(text.replace('(','').replace(')',''))[0])
+                    p_name.insert(0,sign_sort[i][0])
+                    name.insert(0,text.replace('(','').replace(')',''))
             elif  e_state==2:
                 #print('text:{} name:{} role:{}'.format(text,name,role))
                 #print('e_state: ',e_state,'text:',text,' next: ',sign_sort[i-1][1] ,' check: ',self.check_setting(sign_sort[i-1][1],setting))
@@ -265,6 +270,7 @@ class Extract(Resource):
 
         eximg_sign=self.extract_sign(self.delect_text(img_sign,p_signature),p)
         n=len(self.signature)
+        print(len(eximg_sign))
         for i in range(len(eximg_sign)):
             person=PersonModel.tokenization_name(sign[i][1])
             print('person: ',sign[i][1],' after token: ',person)
@@ -293,26 +299,28 @@ class Extract(Resource):
     
     def delect_text(self,img,position_text_around_sign):
         test=img.copy()
-        #print('position_text_around_sign: ',position_text_around_sign)
+        print('position_text_around_sign: ',position_text_around_sign)
         for i in position_text_around_sign:
             for j in i:
                 y1,y2,x1,x2,=j
                 for k in range(y1,y2):
                     for l in range(x1,x2):test[k][l]=255 
-        #cv2.imwrite('test.png',test)
+        cv2.imwrite('test.png',test)
         return test
 
     def extract_sign(self,img_sign,add_sign):
         s=[]
-        #print(add_sign)
+        print(add_sign)
         for i in range(len(add_sign)-1): 
+            print(isinstance(add_sign[i][0],int))
             if(isinstance(add_sign[i][0],int)):
                 #sign=img_sign[add_sign[i][0][1]:add_sign[i+1][2][0],add_sign[i+1][0][3]:add_sign[i+1][1][2]].copy()
                 sign=img_sign[add_sign[i][0]:add_sign[i+1][1][0],add_sign[i+1][1][2]:add_sign[i+1][1][3]].copy()
             else:
                 #sign=img_sign[add_sign[i][2][1]:add_sign[i+1][2][0],add_sign[i+1][0][3]:add_sign[i+1][1][2]].copy()
                 sign=img_sign[add_sign[i][1][1]:add_sign[i+1][1][0],add_sign[i+1][1][2]:add_sign[i+1][1][3]].copy()
-            #cv2.imwrite(f's{i}.png',sign)
+                print(f"{add_sign[i][1][1]} {add_sign[i+1][1][0]} {add_sign[i+1][1][2]} {add_sign[i+1][1][3]}")
+            cv2.imwrite(f's{i}.png',sign)
             gray = cv2.cvtColor(sign,cv2.COLOR_BGR2GRAY)
             image = img_as_float(gray)
             image_binary = image < 0.5
@@ -341,7 +349,7 @@ class Extract(Resource):
             #print('start',len(sign))
             e=[]
             l=[]
-            #print('line: ',lines,' type:',type(lines))
+            print('line: ',lines,' type:',type(lines))
             if isinstance(lines,np.ndarray):
                 for line in lines:
                     row=[]
@@ -367,7 +375,7 @@ class Extract(Resource):
                     s.append(img_erosion)
             else:
                 s.append(sign)
-            #print(s)
+            print(s) 
         return s
 
     @jwt_required()

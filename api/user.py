@@ -119,7 +119,7 @@ class UserModel:
                 text+=f'where last_connect {cond[0]} and last_connect {cond[1]}'
         mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
         mycursor =  mydb.cursor()
-        query = "SELECT * FROM user {2} order by last_connect DESC limit {0} offset {1}".format(limit,offset,text)
+        query = "SELECT * FROM user {2} order by FIELD(status,'online','away','busy','invisible','suspended'),last_connect DESC limit {0} offset {1}".format(limit,offset,text)
         mycursor.execute(query)
         result = mycursor.fetchall()
         mydb.close()
@@ -141,7 +141,7 @@ class UserModel:
         mycursor =  mydb.cursor()
         query ="""
         select * from user where (u_id like '%{0}%' or username like '%{0}%' or tname like '%{0}%' or fname like '%{0}%' or lname like '%{0}%' or email like '%{0}%' or permiss like '%{0}%' or status like '%{0}%' or last_connect like '%{0}%' ) {3}
-        order by last_connect DESC limit {1} offset {2};
+        order by FIELD(status,'online','away','busy','invisible','suspended'),last_connect DESC limit {1} offset {2};
         """.format(keyword,limit,offset,text) 
         #print(query)
         mycursor.execute(query) 

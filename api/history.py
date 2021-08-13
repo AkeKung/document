@@ -66,11 +66,11 @@ class LocModel:
     def list_loc(cls,limit,offset):
         mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
         mycursor=mydb.cursor()
-        sql="SELECT  id_history,username,doc_id,action,user_agent,date_update,u_id FROM history left join user on user_id=u_id group by id_history having id_history limit %s offset %s"
+        sql="SELECT  id_history,username,doc_id,action,user_agent,date_update,u_id FROM history left join user on user_id=u_id group by id_history DESC having id_history limit %s offset %s"
         mycursor.execute(sql, (limit,offset))
         result = mycursor.fetchall()
         mydb.close()
-        list_attr=["historyId","username","documentId","action","userAgent","dateUpdate","userId"]
+        list_attr=["historyId","username","documentId","action","userAgent","dateUpdate","userId"] 
         result_json=[]
         if result:
             for i in result:
@@ -84,7 +84,7 @@ class GetStats(Resource):
     parser.add_argument('month',
                         type=int,
                         location='args',
-                        help="This action cannot be blank.")
+                        help="This action cannot be blank.") 
     parser.add_argument('action',
                         type=str,
                         required=True,
