@@ -96,6 +96,8 @@ class PersonModel:
                 if temp[0] == i:
                     if len(temp)==3:
                         return temp
+                    else:
+                        return 0
                 elif i in temp[0] and temp[0].index(i[0])==0:
                     result = name[:len(i)]+' '+name[len(i):]
                     #print('result:',result)

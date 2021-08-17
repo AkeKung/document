@@ -415,7 +415,7 @@ class ManageUser(Resource):
         setattr(user,"permiss",data["permiss"]) 
         user.update_to_db()
         return make_response({'status':'success', 
-                'data': user.get_manage()
+                'data': user.get_user(1000,0,None)
                 },200)
 
 class SuspendedUser(Resource):
