@@ -90,19 +90,23 @@ class Extract(Resource):
                 imgs.append(i)
         for j in range(len(floats)):
             avg=[sum(idx)/4 for idx in zip(*floats[j][0])]
-            #print(floats[j][1],avg)
+            print(floats[j][1],avg)
+            check=[]
             for i in range(len(imgs)-1):
-                #print(imgs[i][0][1],avg,imgs[i+1][0][-1],imgs[i][1])
+                print(imgs[i][0][1],avg,imgs[i+1][0][-1],imgs[i][1])
                 if imgs[i][0][1][1] < avg[1] < imgs[i+1][0][-1][1]:
                     if imgs[i][0][1][0] < avg[0] < imgs[i+1][0][-1][0]:
                 #if(imgs[i][0][1][0] < avg[0] < imgs[i+1][0][-1][0] and imgs[i][0][1][1] < avg[1] < imgs[i+1][0][-1][1]): 
-                        #print('Yes')
+                        print('Yes')
                         imgs.insert(i+1,floats[j])
                         break
                     elif imgs[i][0][1][0] < avg[0] and avg[1]< imgs[i+1][0][-1][1]-100:
-                        #print('Yes')
+                        print('Yes')
                         imgs.insert(i+1,floats[j])
                         break
+                    elif imgs[i][0][1][0] > avg[0]:
+                        check.append(i+1)
+            imgs.insert(min(check),floats[j])
         return imgs
     
     def summarize(self,position):
@@ -372,7 +376,7 @@ class Extract(Resource):
                     kernel = np.ones((3,3), np.uint8)
                     img_dilation = cv2.dilate(gray, kernel, iterations=1) 
                     img_erosion = cv2.erode(img_dilation, kernel, iterations=1)
-                    s.append(img_erosion)
+                s.append(img_erosion)
             else:
                 s.append(sign)
             print(s) 
@@ -417,8 +421,8 @@ class Extract(Resource):
         #         h+=1
             head=self.read_data(Data['type'],0)[0]
             print ("extract head time --- %s seconds ---" % (time.time() - start_time))
-            #print('head: ')
-            #for i in head:
+            # print('head: ')
+            # for i in head:
             #    print (i)
             start_time=time.time()
             result=self.classify_head(head)

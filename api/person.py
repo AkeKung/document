@@ -18,7 +18,10 @@ class PersonModel:
     
     def save_person(self,fullname):
         #print('fullname: ',fullname)
-        tname,fname,lname=self.tokenization_name(fullname)
+        try:
+            tname,fname,lname=self.tokenization_name(fullname)
+        except ValueError as e:
+            raise e("Person name not valid")
         #print(f'tname: {tname}  fname: {fname}  lname: {lname}')
         id_person =self.check_person(tname,fname,lname)
         print(id_person)
