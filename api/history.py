@@ -66,11 +66,11 @@ class LocModel:
         return {"stats": result_json}
 
     @classmethod
-    def MostRangeViewDoc(cls):
+    def MostRangeViewDoc(cls,limit,offset):
         mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
         mycursor=mydb.cursor()
-        sql="SELECT doc_id ,count(*) FROM history where action like '%view%' group by doc_id order by count(*) DESC limit 10"
-        mycursor.execute(sql)
+        sql="SELECT doc_id ,count(*) FROM history where action like '%view%' group by doc_id order by count(*) DESC limit %s offset %s"
+        mycursor.execute(sql,(limit,offset))
         result=mycursor.fetchall()
         mydb.close()
         result_json=[]
@@ -106,13 +106,13 @@ class GetStats(Resource):
                         type=int,
                         required=True,
                         location='args',
-                        help="This action cannot be blank.")    
-    parser.add_argument('opt',
+                        help="This action cannot be blank.")       
+    Monthparser = reqparse.RequestParser()
+    Monthparser.add_argument('opt',
                         type=str,
                         required=True,
                         location='args',
-                        help="This action cannot be blank.")     
-    Monthparser = reqparse.RequestParser()
+                        help="This action cannot be blank.")  
     Monthparser.add_argument('month',
                         type=int,
                         required=True,
@@ -123,13 +123,13 @@ class GetStats(Resource):
     def get(self):
         params = GetStats.parser.parse_args()
         if params['type'] ==0 :
-            if params['opt'] == "w":
+            mparams = GetStats.Monthparser.parse_args()
+            if mparams['opt'] == "w":
                 return make_response({
                     "status" : "success",
                     "data": LocModel.stats("insert",None)
                 },200)
             else :
-                mparams = GetStats.Monthparser.parse_args()
                 if mparams['month']>12 or mparams['month'] <1:
                         return {{
                             "status": "failed",
@@ -142,9 +142,20 @@ class GetStats(Resource):
                 'data':LocModel.stats("insert",month)
                 },200)
         elif params['type'] ==1 :
+            params = ViewLoc.parser.parse_args()
+            if params['limit'] < 0:
+                return {
+                'status':'failed',
+                'message':'Invalid enter limit'
+            },400 
+            elif params['offset'] < 0:
+                return {
+                'status':'failed',
+                'message':'Invalid enter offset'
+            },400 
             return {
                     'status':'success',
-                    'data': LocModel.MostRangeViewDoc()
+                    'data': LocModel.MostRangeViewDoc(params['limit'],params['offset'])
                 },200
         
 
