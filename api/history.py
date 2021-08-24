@@ -1,5 +1,6 @@
 from ast import parse
 from datetime import datetime
+import re
 from flask import make_response,jsonify
 from flask_jwt_extended import jwt_required,get_jwt
 from flask_restful import Resource,reqparse
@@ -48,9 +49,12 @@ class LocModel:
 
     @classmethod
     def stats(cls,action,month):
+        cond =" and YEARWEEK(date_update,1)  =YEARWEEK(NOW())"
+        if month:
+            cond = "and Month(date_update) = {}".format(month) 
         mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
         mycursor=mydb.cursor()
-        sql="SELECT DATE(date_update) ,count(*) FROM history where action like '%{}%' and Month(date_update) = {} group by DATE(date_update)".format(action,month) 
+        sql="SELECT DATE(date_update) ,count(*) FROM history where action like '%{}%' {} group by DATE(date_update)".format(action,cond)
         mycursor.execute(sql)
         result=mycursor.fetchall()
         mydb.close()
@@ -59,7 +63,23 @@ class LocModel:
         if result:
             for i in result:
                 result_json.append({"date_update":i[0],"value":i[1]})
-        return {"action":action,"stats": result_json}
+        return {"stats": result_json}
+
+    @classmethod
+    def MostRangeViewDoc(cls):
+        mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
+        mycursor=mydb.cursor()
+        sql="SELECT doc_id ,count(*) FROM history where action like '%view%' group by doc_id order by count(*) DESC limit 10"
+        mycursor.execute(sql)
+        result=mycursor.fetchall()
+        mydb.close()
+        result_json=[]
+        print(result)
+        if result:
+            for i in result:
+                result_json.append({"documentId":i[0],"value":i[1]})
+        return {"stats": result_json}
+
 
 
     @classmethod
@@ -79,33 +99,54 @@ class LocModel:
                     setattr(loc,list_attr[j],i[j])
                 result_json.append(loc.json())
         return result_json
+
 class GetStats(Resource):
     parser = reqparse.RequestParser()
-    parser.add_argument('month',
+    parser.add_argument('type',
                         type=int,
+                        required=True,
                         location='args',
-                        help="This action cannot be blank.") 
-    parser.add_argument('action',
+                        help="This action cannot be blank.")    
+    parser.add_argument('opt',
                         type=str,
                         required=True,
                         location='args',
-                        help="This action cannot be blank.")
+                        help="This action cannot be blank.")     
+    Monthparser = reqparse.RequestParser()
+    Monthparser.add_argument('month',
+                        type=int,
+                        required=True,
+                        location='args',
+                        help="This action cannot be blank." 
+                        )
     @jwt_required()
     def get(self):
         params = GetStats.parser.parse_args()
-        if params['month']:
-            if params['month']>12 or params['month'] <1:
-                return {{
-                    "status": "failed",
-                    "message": "Not Invalid month"},400}
-            else:
-                month = params['month']
-        else: 
-            month = datetime.today().month
-        return make_response({
-            'status':'success',
-            'data':LocModel.stats(params['action'],month)
-        },200)
+        if params['type'] ==0 :
+            if params['opt'] == "w":
+                return make_response({
+                    "status" : "success",
+                    "data": LocModel.stats("insert",None)
+                },200)
+            else :
+                mparams = GetStats.Monthparser.parse_args()
+                if mparams['month']>12 or mparams['month'] <1:
+                        return {{
+                            "status": "failed",
+                            "message": "Not Invalid month"},400}
+                else:
+                    month = mparams['month']
+                month = datetime.today().month
+            return make_response({
+                'status':'success',
+                'data':LocModel.stats("insert",month)
+                },200)
+        elif params['type'] ==1 :
+            return {
+                    'status':'success',
+                    'data': LocModel.MostRangeViewDoc()
+                },200
+        
 
 class ViewLoc(Resource):
     parser = reqparse.RequestParser()
