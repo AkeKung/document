@@ -129,14 +129,14 @@ class GetStats(Resource):
                     "status" : "success",
                     "data": LocModel.stats("insert",None)
                 },200)
-            else :
+            else :                
+                month = datetime.today().month
                 if mparams['month']>12 or mparams['month'] <1:
                         return {{
                             "status": "failed",
                             "message": "Not Invalid month"},400}
                 else:
                     month = mparams['month']
-                month = datetime.today().month
             return make_response({
                 'status':'success',
                 'data':LocModel.stats("insert",month)
