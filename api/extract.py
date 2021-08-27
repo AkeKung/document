@@ -204,6 +204,8 @@ class Extract(Resource):
         sign=[]
         p=[]
         p_signature=[]
+        end_current=0
+        count_fail=0
         for i in range(len(sign_sort)-1,-1,-1):
             type=self.check_setting(sign_sort[i][1],self.setting)[0]
             text=sign_sort[i][1].strip()
@@ -217,7 +219,8 @@ class Extract(Resource):
                         sign.insert(0,[("".join(role)),(" ".join(name).strip())])
                         p.insert(0,[self.summarize(p_role),self.summarize(p_name)])
                         p_signature.insert(0,[self.summarize(p_role),self.summarize(p_name)])
-                if text[-1] ==')':
+                        end_current=i-1
+                if text[-1] ==')' :
                     e_state=1
                 else: 
                     e_state=0
@@ -230,7 +233,7 @@ class Extract(Resource):
                 #print('e_state: ',e_state,'text:',text,' next: ',sign_sort[i-1][1] ,' check: ',self.check_setting(sign_sort[i-1][1],setting))
                 if(text[0] == '(' or check):
                     p_name.insert(0,sign_sort[i][0])
-                    name.insert(0,text.replace('(',''))
+                    name.insert(0,text.replace('(','').replace(')',''))
                     e_state =2
                     continue
                 else:
@@ -270,6 +273,8 @@ class Extract(Resource):
                 if type=='personRole':
                     p_role.insert(0,sign_sort[i][0]) 
                     role.insert(0,spell(text)[0])
+            if i==0:
+                p.insert(0,[self.summarize([sign_sort[end_current][0]])[1]])
         print('result signature:',sign)
 
         eximg_sign=self.extract_sign(self.delect_text(img_sign,p_signature),p)
@@ -314,7 +319,7 @@ class Extract(Resource):
 
     def extract_sign(self,img_sign,add_sign):
         s=[]
-        print(add_sign)
+        print(f"add :{add_sign}")
         for i in range(len(add_sign)-1): 
             print(isinstance(add_sign[i][0],int))
             if(isinstance(add_sign[i][0],int)):
@@ -379,7 +384,7 @@ class Extract(Resource):
                 s.append(img_erosion)
             else:
                 s.append(sign)
-            print(s) 
+            #print(s) 
         return s
 
     @jwt_required()
