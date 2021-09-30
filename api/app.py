@@ -1,3 +1,4 @@
+from flask.helpers import make_response
 from flask import Flask,jsonify
 from flask_restful import Api,Resource
 from flask_jwt_extended import JWTManager,jwt_required,create_access_token,get_jwt,get_jwt_identity
@@ -104,13 +105,13 @@ class TokenRefresh(Resource):
         current_user=get_jwt_identity()
         time=datetime.now()
         new_token = create_access_token(identity=current_user, fresh=False,expires_delta=timedelta(hours=3))
-        return {
+        return make_response({
             'status':'success',
             'data':{
                 'access_token':new_token,
                 "expires_token":time+timedelta(hours=3)
                 }
-            },200
+            },200)
 
 api.add_resource(UserRegister, '/authen/register')
 api.add_resource(UserLogin,'/authen/login')
