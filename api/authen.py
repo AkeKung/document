@@ -189,7 +189,7 @@ class ForgetPassword(Resource):
                 },400
         if user:
             token = create_access_token(identity=user.userId,fresh=True,expires_delta=timedelta(hours=4))
-            endpoint=f'http://127.0.0.1:80/lisa/user/resetPassword/?token={token}'
+            endpoint=f'http://localhost:80/lisa/user/resetPassword/?token={token}'
             SendEmail.send_reset_email(user,endpoint)
             return {'status':'success',
                 'data':{

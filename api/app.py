@@ -9,7 +9,7 @@ from upload import Upload
 from history import ViewLoc,GetStats
 from document import ViewDocuments,ViewDocumentDetail,ViewPages
 from dotenv import load_dotenv
-from datetime import timedelta
+from datetime import timedelta,datetime
 
 load_dotenv(".env")
 # sp = SparkPost(os.getenv('SPARKPOST_API_KEY'))
@@ -102,11 +102,13 @@ class TokenRefresh(Resource):
     @jwt_required(refresh=True)
     def post(self):
         current_user=get_jwt_identity()
-        new_token = create_access_token(identity=current_user, fresh=False,expires_delta=timedelta(hours=1))
+        time=datetime.now()
+        new_token = create_access_token(identity=current_user, fresh=False,expires_delta=timedelta(hours=3))
         return {
             'status':'success',
             'data':{
-                'access_token':new_token
+                'access_token':new_token,
+                "expires_token":time+timedelta(hours=3)
                 }
             },200
 
