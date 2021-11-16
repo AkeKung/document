@@ -3,7 +3,8 @@ from document import DocumentModel
 from history import LocModel
 from firebase import storage
 from person import PersonModel,tname
-import mysql.connector,time,os,json
+import time,json,os,mysql.connector
+#from db import mydb
 
 from flask import make_response,request,jsonify
 from flask_restful import Resource, reqparse
@@ -17,6 +18,8 @@ from itertools import chain
 from collections import Counter
 from skimage import morphology,img_as_float
 reader = easyocr.Reader(['th','en'],recog_network = 'thai_g1')
+MONTHS = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"]
+thainum={"๐":'0',"๑":'1',"๒":'2',"๓":'3',"๔":'4',"๕":'5',"๖":'6',"๗":'7',"๘":'8',"๙":'9','o':'0'}
 
 def default(o):
     if isinstance(o, (date, datetime)):
@@ -123,8 +126,7 @@ class Extract(Resource):
         return [int(min(y)),int(max(y)),int(min(x)),int(max(x))]
     
     def convert_date(self,date):
-        MONTHS = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"]
-        thainum={"๐":'0',"๑":'1',"๒":'2',"๓":'3',"๔":'4',"๕":'5',"๖":'6',"๗":'7',"๘":'8',"๙":'9','o':'0'}
+        
         chance = 543
         if 'ค.ศ.' in date:
             chance = 0
@@ -183,7 +185,8 @@ class Extract(Resource):
                 title+=pre_temp
                 if i < len(sort_head)-1:
                     continue
-            if h_state and ((x_check > x and abs(y-y_check)<10 ) or (x_check < x and abs(y-y_check)<80)):
+            #print(h_state,"x_check: ",x_check,"x ",x ,"y_check:",y_check,"y", y)
+            if h_state and ((x_check > x and abs(y-y_check)<15 ) or (x_check < x and abs(y-y_check)<80)):
                 x=x_check
                 y=y_check
                 title+=' '+sort_head[i][1].strip() 
@@ -240,8 +243,6 @@ class Extract(Resource):
                     p_name.insert(0,sign_sort[i][0])
                     name.insert(0,text.replace('(','').replace(')',''))
             elif  e_state==2:
-                #print('text:{} name:{} role:{}'.format(text,name,role))
-                #print('e_state: ',e_state,'text:',text,' next: ',sign_sort[i-1][1] ,' check: ',self.check_setting(sign_sort[i-1][1],setting))
                 if type=='endpoint':
                     if (check=='signature'):
                         p_signature.append([self.summarize([sign_sort[i-1][0]])])
@@ -256,13 +257,6 @@ class Extract(Resource):
                             name.insert(0,sign_sort[i-j][1].strip())
                     p.insert(0,[self.summarize([sign_sort[i-j][0]])[1]])
                     sign.insert(0,[("".join(role)),(" ".join(name).strip())])
-                    # if (self.summarize(p_role))[0] - self.summarize([sign_sort[i-1][0]])[1] > 50:
-                    #     print('pre1')
-                    #     p.insert(0,[self.summarize([sign_sort[i-1][0]])[1]])
-                    # elif (self.summarize(p_role))[0] - self.summarize([sign_sort[i-2][0]])[1] > 50:
-                    #     print('pre2')
-                    #     p.insert(0,[self.summarize([sign_sort[i-2][0]])[1]])                                    
-                    # 
                     break
                 if type =='signature' or text in tname:
                     p_signature.append([self.summarize([sign_sort[i][0]])])
@@ -275,8 +269,6 @@ class Extract(Resource):
                     role.insert(0,spell(text)[0])
             if i==0:
                 p.insert(0,[self.summarize([sign_sort[end_current][0]])[1]])
-        print('result signature:',sign)
-
         eximg_sign=self.extract_sign(self.delect_text(img_sign,p_signature),p)
         n=len(self.signature)
         print(len(eximg_sign))
@@ -296,7 +288,6 @@ class Extract(Resource):
                     "personRole":sign[i][0],
                     "signatureImg":self.save_signature(self.keyword['documentId'],i,eximg_sign[i])
                     })
-        print(f"signature: {self.signature}")
         return self.signature
 
     def save_signature(self,documentId,i,img_sign):
@@ -434,9 +425,7 @@ class Extract(Resource):
             print ("classify_head time --- %s seconds ---" % (time.time() - start_time))
             with open('temp/temp.json','w',encoding = 'utf-8') as r: 
                 json.dump(result,r,sort_keys=True,default=default,ensure_ascii=False)
-
         elif Data['type'] == 1: 
-
             for i in Data['pages']:          
                 for j,k in i.items():
                     signature,img_sign=self.read_data(Data['type'],j) 
@@ -535,7 +524,11 @@ class Extract(Resource):
             if i =='dateWrite':
                 value=datetime.strptime(Data[i],"%a, %d %b %Y %H:%M:%S %Z").date()
             setattr(doc,i,value)
-        doc.save_to_db()
+        check=doc.save_to_db()
+        if(check==False):
+            return {
+                        'status':'failed',
+                        'message':'Person invalid'},400
         pages=self.read_page()
         k=0
         for ps in pages:

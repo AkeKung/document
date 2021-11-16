@@ -3,10 +3,13 @@ from flask_restful import Resource,reqparse
 from flask_jwt_extended import jwt_required,get_jwt
 
 import mysql.connector,os
+#from db import mydb
+
 from person import PersonModel
 from history import LocModel
 
 from datetime import datetime
+mydb= mysql.connector.connect(host="localhost",user="root",passwd="",database="doc")
 
 class DocumentModel:
     def __init__(self,documentId=None,title=None,sendAddress=None,receiver=None,dateWrite=None,signature=None,dateUpdate=None):
@@ -46,6 +49,10 @@ class DocumentModel:
             return 0
     
     def save_to_db(self):
+        if(self.signature):
+            for i in self.signature:
+                check=PersonModel.tokenization_name(i['personName'])
+                if(len(check)<3):return False
         mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
         mycursor = mydb.cursor()
         query = "Update document set title = %s, sendAddress = %s, receiver =%s,dateWrite = %s where documentId = %s"
@@ -54,6 +61,7 @@ class DocumentModel:
         mydb.close()
         for i in self.signature:
             self.save_signature(i)
+        return True
 
     @classmethod
     def current_signature(cls):
@@ -120,7 +128,7 @@ class DocumentModel:
                 else :setattr(doc,dict_doc[j],'')
         else:
             doc=None
-        #mydb.close()
+        mydb.close()
         return doc
 
     @classmethod
@@ -147,6 +155,7 @@ class DocumentModel:
         mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
         mycursor = mydb.cursor()
         query="SELECT documentId,title,sendAddress,receiver,dateWrite,Max(date_update) FROM document join history on document.documentId = history.doc_id {2} group by documentId ORDER BY documentId DESC limit {0} offset {1}".format(limit,offset,text)
+        print(query)
         mycursor.execute(query)
         result = mycursor.fetchall()
         mydb.close()

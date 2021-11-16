@@ -70,6 +70,7 @@ class Upload(Resource):
         for data in Data:
             filename = data.filename
             filetype= data.mimetype.split("/")[-1].lower()
+            filename="{}.png".format(j)
             #print("filetype: ",filetype)
             
             #convert pdf to image
@@ -77,7 +78,6 @@ class Upload(Resource):
                 pages = convert_from_bytes(data.stream.read(), 300)
                 for page in pages:
                     #save each page
-                    filename="{}.png".format(j)
                     url=self.save_to_firebase(page,documentId,filename)
                     dict_file['pages'].append({j:url})
                     j+=1
