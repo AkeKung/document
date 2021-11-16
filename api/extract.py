@@ -320,61 +320,61 @@ class Extract(Resource):
                 #sign=img_sign[add_sign[i][2][1]:add_sign[i+1][2][0],add_sign[i+1][0][3]:add_sign[i+1][1][2]].copy()
                 sign=img_sign[add_sign[i][1][1]:add_sign[i+1][1][0],add_sign[i+1][1][2]:add_sign[i+1][1][3]].copy()
                 print(f"{add_sign[i][1][1]} {add_sign[i+1][1][0]} {add_sign[i+1][1][2]} {add_sign[i+1][1][3]}")
-            cv2.imwrite(f's{i}.png',sign)
-            gray = cv2.cvtColor(sign,cv2.COLOR_BGR2GRAY)
-            image = img_as_float(gray)
-            image_binary = image < 0.5
-            out_skeletonize = morphology.skeletonize(image_binary)
-            temp=[]
-            w=len(sign)
-            h=len(sign[0])
-            for i in range(w):
-                row=[]
-                for j in range(h):
-                    if out_skeletonize[i][j]:
-                        row.append(255)
-                    else:row.append(0)
-                temp.append(row)
-            data=np.array(temp,dtype=np.uint8)
-            thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+            # cv2.imwrite(f's{i}.png',sign)
+            # gray = cv2.cvtColor(sign,cv2.COLOR_BGR2GRAY)
+            # image = img_as_float(gray)
+            # image_binary = image < 0.5
+            # out_skeletonize = morphology.skeletonize(image_binary)
+            # temp=[]
+            # w=len(sign)
+            # h=len(sign[0])
+            # for i in range(w):
+            #     row=[]
+            #     for j in range(h):
+            #         if out_skeletonize[i][j]:
+            #             row.append(255)
+            #         else:row.append(0)
+            #     temp.append(row)
+            # data=np.array(temp,dtype=np.uint8)
+            # thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
 
-            num_labels, labels_im = cv2.connectedComponents(thresh)
-            binaryImageClone = np.copy(labels_im)
-            common=Counter(chain.from_iterable(binaryImageClone))
-            #label=draw_label(binaryImageClone)
+            # num_labels, labels_im = cv2.connectedComponents(thresh)
+            # binaryImageClone = np.copy(labels_im)
+            # common=Counter(chain.from_iterable(binaryImageClone))
+            # #label=draw_label(binaryImageClone)
             
-            kernel = np.ones((2,2), np.uint8)
-            img_dilation = cv2.dilate(thresh, kernel, iterations=1)
-            lines = cv2.HoughLinesP(data, 1, np.pi/360, 20, minLineLength=200, maxLineGap=100)
-            #print('start',len(sign))
-            e=[]
-            l=[]
-            print('line: ',lines,' type:',type(lines))
-            if isinstance(lines,np.ndarray):
-                for line in lines:
-                    row=[]
-                    for x1,y1,x2,y2 in line:
-                        #print(x1,y1,x2,y2)
-                        m = (y2 - y1) / (x2 - x1)
-                        c = y1 - m* x1
-                        row.append([m,c])
-                        for i in range(0,len(data[0])):
-                            if(int(m*i+c) < len(gray) and m*i+c >=0):
-                                if(labels_im[int(m*i+c)][i] != 0): l.append(labels_im[int(m*i+c)][i])
-                    e.append(row)
-                    label_del= list(set(l))
-                    kernel = np.ones((5,5), np.uint8)
-                    img_dilation = cv2.dilate(gray, kernel, iterations=1)
-                    for m in range(len(gray)):
-                        for n in range(len(gray[0])):
-                            if( labels_im[m][n] in label_del and common[labels_im[m][n]] < w*h/1000 ):
-                                gray[m][n]=255
-                    kernel = np.ones((3,3), np.uint8)
-                    img_dilation = cv2.dilate(gray, kernel, iterations=1) 
-                    img_erosion = cv2.erode(img_dilation, kernel, iterations=1)
-                s.append(img_erosion)
-            else:
-                s.append(sign)
+            # kernel = np.ones((2,2), np.uint8)
+            # img_dilation = cv2.dilate(thresh, kernel, iterations=1)
+            # lines = cv2.HoughLinesP(data, 1, np.pi/360, 20, minLineLength=200, maxLineGap=100)
+            # #print('start',len(sign))
+            # e=[]
+            # l=[]
+            # print('line: ',lines,' type:',type(lines))
+            # if isinstance(lines,np.ndarray):
+            #     for line in lines:
+            #         row=[]
+            #         for x1,y1,x2,y2 in line:
+            #             #print(x1,y1,x2,y2)
+            #             m = (y2 - y1) / (x2 - x1)
+            #             c = y1 - m* x1
+            #             row.append([m,c])
+            #             for i in range(0,len(data[0])):
+            #                 if(int(m*i+c) < len(gray) and m*i+c >=0):
+            #                     if(labels_im[int(m*i+c)][i] != 0): l.append(labels_im[int(m*i+c)][i])
+            #         e.append(row)
+            #         label_del= list(set(l))
+            #         kernel = np.ones((5,5), np.uint8)
+            #         img_dilation = cv2.dilate(gray, kernel, iterations=1)
+            #         for m in range(len(gray)):
+            #             for n in range(len(gray[0])):
+            #                 if( labels_im[m][n] in label_del and common[labels_im[m][n]] < w*h/1000 ):
+            #                     gray[m][n]=255
+            #         kernel = np.ones((3,3), np.uint8)
+            #         img_dilation = cv2.dilate(gray, kernel, iterations=1) 
+            #         img_erosion = cv2.erode(img_dilation, kernel, iterations=1)
+            #     s.append(img_erosion)
+            # else:
+            s.append(sign)
             #print(s) 
         return s
 
