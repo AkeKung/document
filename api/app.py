@@ -11,6 +11,7 @@ from history import ViewLoc,GetStats
 from document import ViewDocuments,ViewDocumentDetail,ViewPages
 from dotenv import load_dotenv
 from datetime import timedelta,datetime
+import os
 
 load_dotenv(".env")
 # sp = SparkPost(os.getenv('SPARKPOST_API_KEY'))
@@ -134,3 +135,5 @@ api.add_resource(ViewPages,'/list/documents/pages')
 
 if __name__ == '__main__':
     app.run(port=5000,debug=True)
+    #app.run(host="192.168.3.90",port=5000,debug=True)
+

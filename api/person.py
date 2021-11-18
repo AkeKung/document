@@ -1,4 +1,6 @@
-import mysql.connector,csv,os
+import csv,os,mysql.connector
+from json import dump
+#from db import mydb
 
 tname=[]
 with open('name.csv', newline=None,encoding='utf8') as f:
@@ -94,16 +96,9 @@ class PersonModel:
             result.insert(0,t)
             return result
         else:
-            temp = name.split()
             for i in tname:
-                if temp[0] == i:
-                    if len(temp)==3:
-                        return temp
-                    else:
-                        return 0
-                elif i in temp[0] and temp[0].index(i[0])==0:
+                if i in name and name.index(i[0])==0:
                     result = name[:len(i)]+' '+name[len(i):]
                     #print('result:',result)
-                    if len(result.split()) ==3:
-                        return result.split()
+                    return result.split()
             return 0

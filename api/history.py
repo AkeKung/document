@@ -1,5 +1,6 @@
 from ast import parse
 from datetime import datetime
+#from db import mydb
 import re
 from flask import make_response,jsonify
 from flask_jwt_extended import jwt_required,get_jwt
@@ -52,6 +53,7 @@ class LocModel:
         cond =" and YEARWEEK(date_update,1)  =YEARWEEK(NOW())"
         if month:
             cond = "and Month(date_update) = {}".format(month) 
+            
         mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
         mycursor=mydb.cursor()
         sql="SELECT DATE(date_update) ,count(*) FROM history where action like '%{}%' {} group by DATE(date_update)".format(action,cond)

@@ -17,7 +17,7 @@ from pythainlp.spell import NorvigSpellChecker
 from itertools import chain
 from collections import Counter
 from skimage import morphology,img_as_float
-reader = easyocr.Reader(['th','en'],recog_network = 'thai_g1')
+reader = easyocr.Reader(['th','en'],recog_network = 'thai_g1', gpu=True)
 MONTHS = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"]
 thainum={"๐":'0',"๑":'1',"๒":'2',"๓":'3',"๔":'4',"๕":'5',"๖":'6',"๗":'7',"๘":'8',"๙":'9','o':'0'}
 
@@ -210,7 +210,7 @@ class Extract(Resource):
         end_current=0
         count_fail=0
         for i in range(len(sign_sort)-1,-1,-1):
-            type=self.check_setting(sign_sort[i][1],self.setting)[0]
+            type=self.check_setting(sign_sort[i][1].replace(",","").replace(".",""),self.setting)[0]
             text=sign_sort[i][1].strip()
             print('text:',sign_sort[i][1],'e_state:',e_state ," type: ",type)
             check = self.check_setting(sign_sort[i-1][1],self.setting)[0]
@@ -271,10 +271,11 @@ class Extract(Resource):
                 p.insert(0,[self.summarize([sign_sort[end_current][0]])[1]])
         eximg_sign=self.extract_sign(self.delect_text(img_sign,p_signature),p)
         n=len(self.signature)
-        print(len(eximg_sign))
+        #print(len(eximg_sign))
         for i in range(len(eximg_sign)):
+            print('person: ',sign[i][1])
             person=PersonModel.tokenization_name(sign[i][1])
-            print('person: ',sign[i][1],' after token: ',person)
+            print(' after token: ',person)
             if len(person) == 3:
                 id=PersonModel.check_person(person[0],person[1],person[2])
                 if not id:
@@ -320,7 +321,7 @@ class Extract(Resource):
                 #sign=img_sign[add_sign[i][2][1]:add_sign[i+1][2][0],add_sign[i+1][0][3]:add_sign[i+1][1][2]].copy()
                 sign=img_sign[add_sign[i][1][1]:add_sign[i+1][1][0],add_sign[i+1][1][2]:add_sign[i+1][1][3]].copy()
                 print(f"{add_sign[i][1][1]} {add_sign[i+1][1][0]} {add_sign[i+1][1][2]} {add_sign[i+1][1][3]}")
-            # cv2.imwrite(f's{i}.png',sign)
+            cv2.imwrite(f's{i}.png',sign)
             # gray = cv2.cvtColor(sign,cv2.COLOR_BGR2GRAY)
             # image = img_as_float(gray)
             # image_binary = image < 0.5
