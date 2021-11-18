@@ -247,7 +247,7 @@ class Extract(Resource):
                     if (check=='signature'):
                         p_signature.append([self.summarize([sign_sort[i-1][0]])])
                     p_role.insert(0,sign_sort[i][0])
-                    role.insert(0,text)
+                    role.insert(0,text.replace(",","").replace(".",""))
                     p.insert(0,[self.summarize(p_role),self.summarize(p_name)])
                     p_signature.insert(0,[self.summarize(p_role),self.summarize(p_name)])
                     j=0
@@ -266,7 +266,7 @@ class Extract(Resource):
                     continue
                 if type=='personRole':
                     p_role.insert(0,sign_sort[i][0]) 
-                    role.insert(0,spell(text)[0])
+                    role.insert(0,spell(text.replace(",","").replace(".",""))[0])
             if i==0:
                 p.insert(0,[self.summarize([sign_sort[end_current][0]])[1]])
         eximg_sign=self.extract_sign(self.delect_text(img_sign,p_signature),p)
