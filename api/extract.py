@@ -187,11 +187,15 @@ class Extract(Resource):
     def check_setting(cls,input,setting):
         min=[100,""]
         type=""
+        input_token=word_tokenize(input,keep_whitespace=False)[0]
         for i,j in setting.items():
             for key in j:
                 if len(key) > len(input):
                     continue
-                input_token=word_tokenize(input,keep_whitespace=False)[0]
+                if i=="sendAddress":
+                    if key in input:
+                        if input.strip().index(key)==0:
+                            return i,input.replace(key,"").strip()
                 distance =levenshteinDistanceDP(input_token,key)
                 print("key: "+key+" input_token: "+ input_token+" distance: " ,distance)
                 if(distance==0):

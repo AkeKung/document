@@ -212,9 +212,12 @@ class DocumentModel:
 
     @classmethod
     def save_page(cls,documentID,pageNum,url):
+        num = DocumentModel.current_page()
+        if(not num):
+            num = 0
         mydb= mysql.connector.connect(host=os.getenv('host'),user=os.getenv('user'),passwd=os.getenv('password'),database=os.getenv('database'))
         mycursor=mydb.cursor()
-        query=f"INSERT INTO pages values ({DocumentModel.current_page()+1},{documentID},{pageNum},'{url}')"
+        query=f"INSERT INTO pages values ({num+1},{documentID},{pageNum},'{url}')"
         mycursor.execute(query)
         mydb.commit()
         mydb.close()
