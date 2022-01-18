@@ -1,4 +1,5 @@
 #from numpy.lib.function_base import extract
+from easyocr.utils import word_segmentation
 from document import DocumentModel
 from history import LocModel
 from firebase import storage
@@ -12,7 +13,7 @@ from flask_jwt_extended import jwt_required,get_jwt
 import cv2,easyocr
 import numpy as np
 from datetime import datetime,date
-from pythainlp import spell
+from pythainlp import spell,word_tokenize
 from pythainlp.spell import NorvigSpellChecker
 from itertools import chain
 from collections import Counter
@@ -53,7 +54,7 @@ def levenshteinDistanceDP(token1, token2):
                         distances[t1][t2] = b + 1
                     else:
                         distances[t1][t2] = c + 1
-        print(token1,token2)
+        #print(token1,token2)
         return distances[len(token1)][len(token2)]
 
 class Extract(Resource):
@@ -161,7 +162,7 @@ class Extract(Resource):
         chance = 543
         if 'ค.ศ.' in date:
             chance = 0
-        d,m,y=date.replace('เดือน','').replace('ปี','').replace('พ.ศ.','').replace('ค.ศ.','').split() 
+        d,m,y=date.replace('วันที่','').replace('เดือน','').replace('ปี','').replace('พ.ศ.','').replace('ค.ศ.','').split() 
         if y[0] in thainum : 
             year=int(''.join(map(str, [thainum[i] for i in y]))) -chance
             day=int(''.join([thainum[i] for i in d]))
@@ -183,7 +184,9 @@ class Extract(Resource):
             for key in j:
                 if len(key) > len(input):
                     continue
-                distance =levenshteinDistanceDP(input,key)
+                input_token=word_tokenize(input,keep_whitespace=False)[0]
+                distance =levenshteinDistanceDP(input_token,key)
+                print("key: "+key+" input_token: "+ input_token+" distance: " ,distance)
                 if(distance==0):
                     return i,input.replace(key,"").strip()
                 elif(distance<min[0]):
