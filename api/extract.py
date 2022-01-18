@@ -113,7 +113,8 @@ class Extract(Resource):
         kernel = np.ones((3,3), np.uint8)
         img_dilation = cv2.erode(gray,kernel,iterations = 1)
         #opt_imgs.append(img_dilation)
-        return [reader.readtext(img_dilation),d_img]#opt_imgs[0],opt_imgs[1]]
+        data=reader.readtext(img_dilation)
+        return [data,d_img]#opt_imgs[0],opt_imgs[1]]
 
     def float_sort(self,img):
         floats=[]
@@ -126,22 +127,27 @@ class Extract(Resource):
         for j in range(len(floats)):
             avg=[sum(idx)/4 for idx in zip(*floats[j][0])]
             print(floats[j][1],avg)
+            isFinish=0
             check=[]
             for i in range(len(imgs)-1):
                 print(imgs[i][0][1],avg,imgs[i+1][0][-1],imgs[i][1])
                 if imgs[i][0][1][1] < avg[1] < imgs[i+1][0][-1][1]:
                     if imgs[i][0][1][0] < avg[0] < imgs[i+1][0][-1][0]:
                 #if(imgs[i][0][1][0] < avg[0] < imgs[i+1][0][-1][0] and imgs[i][0][1][1] < avg[1] < imgs[i+1][0][-1][1]): 
-                        print('Yes')
+                        print('Yes 1')
                         imgs.insert(i+1,floats[j])
+                        isFinish=1
                         break
                     elif imgs[i][0][1][0] < avg[0] and avg[1]< imgs[i+1][0][-1][1]-100:
-                        print('Yes')
+                        print('Yes 2')
                         imgs.insert(i+1,floats[j])
+                        isFinish=1
                         break
                     elif imgs[i][0][1][0] > avg[0]:
+                        print('Yes 3')
                         check.append(i+1)
-            imgs.insert(min(check),floats[j])
+            if(not isFinish):
+                imgs.insert(min(check),floats[j])
         return imgs
     
     def summarize(self,position):
@@ -158,10 +164,11 @@ class Extract(Resource):
         return [int(min(y)),int(max(y)),int(min(x)),int(max(x))]
     
     def convert_date(self,date):
-        
         chance = 543
         if 'ค.ศ.' in date:
             chance = 0
+
+        print(date.replace('วันที่','').replace('เดือน','').replace('ปี','').replace('พ.ศ.','').replace('ค.ศ.','').split() )
         d,m,y=date.replace('วันที่','').replace('เดือน','').replace('ปี','').replace('พ.ศ.','').replace('ค.ศ.','').split() 
         if y[0] in thainum : 
             year=int(''.join(map(str, [thainum[i] for i in y]))) -chance
@@ -244,6 +251,8 @@ class Extract(Resource):
         
     def classify_signature(self,signature,img_sign):
         sign_sort=self.float_sort(signature)
+        for i in sign_sort:
+            print(i)
         self.setting=self.load_setting(1)
         e_state=0
         sign=[]
@@ -293,8 +302,9 @@ class Extract(Resource):
                     p.insert(0,[self.summarize(p_role),self.summarize(p_name)])
                     p_signature.insert(0,[self.summarize(p_role),self.summarize(p_name)])
                     j=0
-                    while self.summarize(p_role)[0] - self.summarize([sign_sort[i-j][0]])[1] < 50:
+                    while self.summarize(p_role)[0] - self.summarize([sign_sort[i-j][0]])[1] < 50 and i-j>=0:
                         j+=1
+                        print(i-j,sign_sort[i-j][1].strip())
                         if sign_sort[i-j][1].strip() in tname:
                             name.insert(0,sign_sort[i-j][1].strip())
                     p.insert(0,[self.summarize([sign_sort[i-j][0]])[1]])
@@ -311,10 +321,10 @@ class Extract(Resource):
                     role.insert(0,spell(text.replace(",","").replace(".",""))[0])
             if i==0:
                 p.insert(0,[self.summarize([sign_sort[end_current][0]])[1]])
-        eximg_sign=self.extract_sign(self.delect_text(img_sign,p_signature),p)
+        #eximg_sign=self.extract_sign(self.delect_text(img_sign,p_signature),p)
         n=len(self.signature)
-        #print(len(eximg_sign))
-        for i in range(len(eximg_sign)):
+        print(len(sign))
+        for i in range(len(sign)):#len(eximg_sign)
             print('person: ',sign[i][1])
             person=PersonModel.tokenization_name(sign[i][1])
             print(' after token: ',person)
@@ -329,7 +339,7 @@ class Extract(Resource):
                     "personId":id,
                     "personName":sign[i][1],
                     "personRole":sign[i][0],
-                    "signatureImg":self.save_signature(self.keyword['documentId'],i,eximg_sign[i])
+                    "signatureImg":""#self.save_signature(self.keyword['documentId'],i,eximg_sign[i])
                     })
         return self.signature
 
@@ -451,14 +461,8 @@ class Extract(Resource):
         if Data['type'] == 0:
             with open('temp/page.json','w',encoding = 'utf-8') as r: 
                 json.dump(Data['pages'],r,sort_keys=True,default=default,ensure_ascii=False)
-        # orderPage=[]
-        # h=0
-        # for i in Data['pages']:
-        #     for j,k in i.items():
-        #         orderPage.append(int(j))
-        #         DocumentModel.save_page(Data['documentId'],h,k)
-        #         h+=1
-            head=self.read_data(Data['type'],0)[0]
+            for j,k in Data['pages'][0].items():
+                head=self.read_data(Data['type'],j)[0]
             print ("extract head time --- %s seconds ---" % (time.time() - start_time))
             # print('head: ')
             # for i in head:
