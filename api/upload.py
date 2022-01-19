@@ -82,6 +82,7 @@ class Upload(Resource):
                     dict_file['pages'].append({j:url})
                     j+=1
             else:
+                filename="{}.png".format(j)
                 url=self.save_to_firebase(data,documentId,filename)
                 dict_file['pages'].append({j:url})
                 j+=1
