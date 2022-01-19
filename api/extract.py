@@ -109,12 +109,11 @@ class Extract(Resource):
                 d_img=rtemp_img[0:height,0:width]
         gray = cv2.cvtColor(d_img,cv2.COLOR_BGR2GRAY)
         #ret, bw_img = cv2.threshold(gray,2,255,cv2.THRESH_BINARY)
-        #cv2.imwrite('binary'+str(i)+'.png',gray)
         kernel = np.ones((3,3), np.uint8)
         img_dilation = cv2.erode(gray,kernel,iterations = 1)
         #opt_imgs.append(img_dilation)
-        data=reader.readtext(img_dilation)
-        return [data,d_img]#opt_imgs[0],opt_imgs[1]]
+        #cv2.imwrite('test.png',img_dilation)
+        return [reader.readtext(img_dilation),d_img]#opt_imgs[0],opt_imgs[1]]
 
     def float_sort(self,img):
         floats=[]
@@ -146,7 +145,7 @@ class Extract(Resource):
                     elif imgs[i][0][1][0] > avg[0]:
                         print('Yes 3')
                         check.append(i+1)
-            if(not isFinish):
+            if(not isFinish and len(check)>0):
                 imgs.insert(min(check),floats[j])
         return imgs
     
@@ -265,7 +264,9 @@ class Extract(Resource):
         end_current=0
         count_fail=0
         for i in range(len(sign_sort)-1,-1,-1):
-            type=self.check_setting(sign_sort[i][1].replace(",","").replace(".",""),self.setting)[0]
+            ptext =sign_sort[i][1].replace(",","").replace(".","")
+            if(ptext !=""):
+                type=self.check_setting(ptext,self.setting)[0]
             text=sign_sort[i][1].strip()
             print('text:',sign_sort[i][1],'e_state:',e_state ," type: ",type)
             check = self.check_setting(sign_sort[i-1][1],self.setting)[0]
